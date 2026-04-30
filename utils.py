@@ -57,6 +57,55 @@ def get_gradient_norm(loss, model):
     return norm_sq.item()
 
 
+def add_confined_adaptive_points(model, curr_T_max, L, M, epsilon, n_new_points = 2000, n_candidates = 10000, spread = 0.02):
+    model.eval()
+
+    #generate candidates 
+    x_cand = torch.rand(size = (n_candidates, 1)) * L
+    t_cand = torch.rand(size = (n_candidates, 1)) * curr_T_max
+    x_cand.requires_grad = True
+    t_cand.requires_grad = True
+
+    pred_c, pred_mu = model(x_cand, t_cand) #calculating predictions
+
+    #calculating residues
+    c_t = torch.autograd.grad(pred_c, t_cand, grad_outputs=torch.ones_like(pred_c), create_graph=True)[0]
+    mu_x = torch.autograd.grad(pred_mu, x_cand, grad_outputs=torch.ones_like(pred_mu), create_graph=True)[0]
+    mu_xx = torch.autograd.grad(mu_x, x_cand, grad_outputs=torch.ones_like(mu_x), create_graph=True)[0]
+    c_x = torch.autograd.grad(pred_c, x_cand, grad_outputs=torch.ones_like(pred_c), create_graph=True)[0]
+    c_xx = torch.autograd.grad(c_x, x_cand, grad_outputs=torch.ones_like(c_x), create_graph=True)[0]
+
+    res_c = torch.abs(c_t - M * mu_xx)
+    mu_true = (pred_c**3 - pred_c) - (epsilon**2)*c_xx
+    res_mu = torch.abs(pred_mu - mu_true)
+
+    total_residual = res_c + res_mu 
+
+    #selecting top k points by tot res value
+    n_centers = 50
+    _, topk_indices = torch.topk(total_residual.flatten(), n_centers) #-> these top k points will be the centers of the gaussian generated points
+    x_centers = x_cand[topk_indices].detach()
+    t_centers = t_cand[topk_indices].detach() 
+
+    #gaussian generation of new points around top k residual points (the idea is to add a confined gaussian noise)
+    random_center_indices = torch.randint(0, n_centers, (n_new_points, ))
+
+    x_new_base = x_centers[random_center_indices]
+    t_new_base = t_centers[random_center_indices]
+
+    x_new = x_new_base + torch.randn(size = (n_new_points, 1)) * spread
+    t_new = t_new_base + torch.randn(size = (n_new_points, 1)) * spread
+
+    #clamping new points to make sure they belong to the domain
+    x_new = torch.clamp(x_new, min = 0.0, max = L)
+    t_new = torch.clamp(t_new, min = 0.0, max = curr_T_max)
+
+    model.train()
+
+    return x_new, t_new
+
+
+
 
 
 
