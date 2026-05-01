@@ -2,7 +2,7 @@ from pathlib import Path
 import torch
 
 from losses import pde_loss, bc_loss, ic_loss
-from utils import generate_coll_points_and_ic, get_gradient_norm
+from utils import generate_coll_points_and_ic, get_gradient_norm, add_confined_adaptive_points
 
 #function to train the model for just one iteration 
 def train_one_epoch(
@@ -168,7 +168,7 @@ def train_one_epoch_ntk(
         epoch, 
         w_bc_old: float, #BC loss dynamical weight of the previous epoch 
         w_ic_old: float, #IC loss """"
-        alpha: float = 0.1 #parameter that regulates the dynamical weights update (e.g. 0.1 = 10% new, 90% old)
+        alpha: float #parameter that regulates the dynamical weights update (e.g. 0.1 = 10% new, 90% old)
 ):
     
     model.train()
@@ -215,14 +215,16 @@ def train_one_epoch_ntk(
 
     return loss, loss_pde, loss_bc, loss_ic, w_bc_new, w_ic_new
 
-#wrapper to train the model using NTK method for adaptive loss weights
-def train_model_ntk(
+#wrapper to train the model using NTK method for adaptive loss weights and collocation points resampling to address the interfaces
+def train_model_ntk_adaptive(
     model, 
     optimizer, 
     M, 
     epsilon, 
     n_epochs: int = 10000,
-    pretrain_epochs: int = 1000
+    pretrain_epochs: int = 1000,
+    refine_every: int = 500, #once every refine_every epochs new confined adaptive coll. points are generated and added to the training set
+    alpha: float = 0.1 #parameter that regulates the NTK dynamical weights update (e.g. 0.1 = 10% new, 90% old) 
 ):
     #initiate losses history
     train_losses = {
@@ -263,7 +265,11 @@ def train_model_ntk(
 
     #set reasonable initial values for adaptive weights 
     curr_w_bc = 1.0 
-    curr_w_ic = 1.0 
+    curr_w_ic = 10.0 #just for test (NTK off for now calling the function with alpha = 0) !
+
+    #creating the adaptive buffer for resampled points 
+    adaptive_x_buffer = torch.empty((0, 1))
+    adaptive_t_buffer = torch.empty((0, 1))
 
     for epoch in range(1, n_epochs + 1):
         #calculate n. of collocation points to generate in the current epoch to keep sampling density fixed in the space-time domain 
@@ -271,6 +277,14 @@ def train_model_ntk(
         curr_N_bc = int(N_bc * (curr_T_max / T_max))
 
         collocation, c_ic_true = generate_coll_points_and_ic(curr_N_pde, curr_N_bc, N_ic, L, curr_T_max) #generate collocation pts in current time interval
+
+        #concatenate collocation points with resampled points (if any)
+        if adaptive_x_buffer.shape[0] > 0:
+            x_pde_full = torch.cat([collocation["x_pde"], adaptive_x_buffer], dim = 0).detach().requires_grad_(True)
+            t_pde_full = torch.cat([collocation["t_pde"], adaptive_t_buffer], dim = 0).detach().requires_grad_(True)
+
+            collocation["x_pde"] = x_pde_full
+            collocation["t_pde"] = t_pde_full
 
         l_total, l_pde, l_bc, l_ic, curr_w_bc, curr_w_ic = train_one_epoch_ntk(
             model, 
@@ -281,7 +295,8 @@ def train_model_ntk(
             epsilon, 
             epoch,
             curr_w_bc,
-            curr_w_ic
+            curr_w_ic,
+            alpha
         ) #train one epoch and calculate losses terms
 
         #update losses history with current values
@@ -291,6 +306,23 @@ def train_model_ntk(
         train_losses["ic"].append(l_ic.item())
         train_losses["w_bc"].append(curr_w_bc)
         train_losses["w_ic"].append(curr_w_ic)
+
+        if epoch % refine_every == 0 and epoch > 100: #we turn on the resampling after the initial transient of the net
+            new_x, new_t = add_confined_adaptive_points(
+                model, 
+                curr_T_max, 
+                L, 
+                M, 
+                epsilon, 
+                n_new_points = 1000, 
+                n_candidates = 10000, 
+                spread = 0.01
+            )
+
+            #updating the adaptive buffer with new resampled points 
+            adaptive_x_buffer = torch.cat([adaptive_x_buffer, new_x])
+            adaptive_t_buffer = torch.cat([adaptive_t_buffer, new_t])
+            print(f"Nuova dimensione buffer adattivo: {adaptive_x_buffer.shape[0]} punti.")
 
         if epoch % checkpoint == 0 and curr_T_max < T_max:
             curr_T_max += 0.1 * T_max
@@ -319,7 +351,7 @@ if __name__ == "__main__":
 
     #physical parameters
     L = 1.0 #box lenght (1D)
-    T_max = 10.0 #simulation end time
+    T_max = 4.0 #simulation end time
     M = 0.1 #mobility
     epsilon = 0.05 #interface penalty term
 
@@ -329,22 +361,23 @@ if __name__ == "__main__":
     N_ic = 2000 #for initial time
 
     #create model and set Adam optimizer
-    model = CahnHilliardPINN(hidden_layers = 3, hidden_dim = 64)
+    model = CahnHilliardPINN(hidden_layers = 5, hidden_dim = 128)
     optimizer = Adam(model.parameters(), lr = 1e-3)
 
     n_epochs = 5000
 
     #training the model for n_epochs
-    pretrain_losses, train_losses = train_model_ntk(
+    pretrain_losses, train_losses = train_model_ntk_adaptive(
         model, 
         optimizer, 
         M, 
         epsilon, 
-        n_epochs
+        n_epochs,
+        alpha = 0.0 #just for test (turn off NTK method) !
     )
 
     #save the model weights
-    save_model(model, file_name = "ch_ntk_pinn_005eps.pt")
+    save_model(model, file_name = "ch_resamp_nontk_tmax4_pinn_005eps.pt")
 
     #plot train loss vs epoch
     x_epochs = np.arange(1, n_epochs + 1)

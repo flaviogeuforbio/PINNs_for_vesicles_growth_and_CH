@@ -82,7 +82,7 @@ def add_confined_adaptive_points(model, curr_T_max, L, M, epsilon, n_new_points 
     total_residual = res_c + res_mu 
 
     #selecting top k points by tot res value
-    n_centers = 50
+    n_centers = n_new_points // 10
     _, topk_indices = torch.topk(total_residual.flatten(), n_centers) #-> these top k points will be the centers of the gaussian generated points
     x_centers = x_cand[topk_indices].detach()
     t_centers = t_cand[topk_indices].detach() 

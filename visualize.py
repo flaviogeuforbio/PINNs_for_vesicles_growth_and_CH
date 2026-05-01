@@ -9,7 +9,7 @@ from models import CahnHilliardPINN
 def compute_pts_to_visualize(model_checkpoint: str, L: float, T_max: float, N_x_plot: int = 200, N_t_plot: int = 100):
 
     #initialize and load best checkpoint for PINN model
-    model = CahnHilliardPINN(hidden_layers=3, hidden_dim=64)
+    model = CahnHilliardPINN(hidden_layers=5, hidden_dim=128)
     model.load_state_dict(torch.load(model_checkpoint))
     model.eval() 
     
@@ -65,14 +65,14 @@ def create_animation(save_path: str, L: float, c_results: np.array, x_grid: np.a
 if __name__ == "__main__":
     #compute all c(x, t) points on the discrete grid (200*100)
     c_results, x_grid, t_grid = compute_pts_to_visualize(
-        model_checkpoint = "artifacts/ch_ntk_pinn_005eps.pt",
+        model_checkpoint = "artifacts/ch_resamp_nontk_pinn_005eps.pt",
         L = 1.0, 
-        T_max = 10.0
+        T_max = 4.0
     )
 
     #create the time animation of the 1D plot
     create_animation(
-        save_path = "artifacts/ch-animation_ntk_005eps.gif",
+        save_path = "artifacts/ch-animation_resamp_nontk_005eps.gif",
         L = 1.0, #L must be the same as in the previous function!
         c_results = c_results,
         x_grid = x_grid, 
