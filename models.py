@@ -28,7 +28,7 @@ class CahnHilliardPINN(nn.Module):
         #forward propagating the inputs and extracting c, mu output predictions
         outputs = self.net(inputs)
         c = outputs[:, :1] #[N, 1]
-        mu = outputs[:, 1:] #[N, 2]
+        mu = outputs[:, 1:] #[N, 1]
 
         return c, mu
     

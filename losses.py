@@ -49,11 +49,13 @@ def pde_loss(model, x, t, M, epsilon):
     return mse_pde_c + mse_pde_mu
 
 #initial conditions term of the total loss
-def ic_loss(model, x_ic, t_ic, c_ic_true):
-    c_ic_pred, _ = model(x_ic, t_ic) #calculate predicted concentration on IC
+def ic_loss(model, x_ic, t_ic, c_ic_true, mu_ic_true):
+    c_ic_pred, mu_ic_pred = model(x_ic, t_ic) #calculate predicted concentration on IC
 
-    mse_ic = torch.mean((c_ic_pred - c_ic_true)**2)
-    return mse_ic
+    mse_c = torch.mean((c_ic_pred - c_ic_true)**2)
+    mse_mu = torch.mean((mu_ic_pred - mu_ic_true)**2)
+
+    return mse_c, mse_mu
 
 #boundary conditions term of the total loss -> we choose to implement Neumann conditions (zero-flux, closed box)
 def bc_loss(model, x_bc, t_bc):

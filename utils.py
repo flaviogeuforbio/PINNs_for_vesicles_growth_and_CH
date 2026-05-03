@@ -1,7 +1,23 @@
 import torch
 
+#initial condition function for concentration c
+def initial_c(x):
+    return 0.3 * torch.cos(torch.pi * x)
+
+#initial condition function for potential mu
+def initial_c_mu(x, epsilon):
+    x_clone = x.clone().detach().requires_grad_(True) #to avoid autograd errors
+
+    c_0 = initial_c(x_clone) #calculate initial c
+    c0_x = torch.autograd.grad(c_0, x_clone, grad_outputs = torch.ones_like(c_0), create_graph = True, retain_graph = True)[0]
+    c0_xx = torch.autograd.grad(c0_x, x_clone, grad_outputs = torch.ones_like(c0_x), create_graph = True, retain_graph = True)[0]
+    
+    mu_0 = c_0**3 - c_0 - epsilon**2 * c0_xx
+
+    return c_0.detach(), mu_0.detach()
+
 #function that generates a dict of all collocation points (pde, bc, ic) randomly generated to train the network
-def generate_coll_points_and_ic(N_pde, N_bc, N_ic, L, T_max):
+def generate_coll_points_and_ic(N_pde, N_bc, N_ic, L, T_max, epsilon):
     #pde collocation points
     x_pde = torch.rand(size = (N_pde, 1)) * L
     t_pde = torch.rand(size = (N_pde, 1)) * T_max
@@ -27,13 +43,19 @@ def generate_coll_points_and_ic(N_pde, N_bc, N_ic, L, T_max):
     }
 
     #setting the true initial condition
-    # noise = torch.randn_like(x_ic) * 0.1 #create gaussian noise with variance sigma = 0.1
-    # c_ic_true = torch.zeros_like(x_ic) + noise #this way we are creating thermodynamically unstable domains (a thermal fluctuation)
+    c_ic_true, mu_ic_true = initial_c_mu(x_ic, epsilon)
 
-    c_ic_true = 0.3 * torch.cos(torch.pi * x_ic)
-    #this function satisfies the Neumann conditions 
+    return collocation, c_ic_true, mu_ic_true
 
-    return collocation, c_ic_true
+
+#function to compute total system mass at a given time
+def compute_mass(x, c):
+    return torch.trapz(c.squeeze(), x.squeeze()) #trapezoidal rule
+
+#function to compute total system energy at a given time
+def compute_energy(x, c, c_x, epsilon):
+    density = 0.25 * (c**2 - 1.0)**2 + 0.5 * epsilon**2 * c_x**2 #free energy density
+    return torch.trapz(density.squeeze(), x.squeeze()) 
 
 
 #function to compute the estimated (inverse) weight of a specific loss term (gradient norm)
