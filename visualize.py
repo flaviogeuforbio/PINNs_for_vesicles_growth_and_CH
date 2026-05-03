@@ -65,14 +65,14 @@ def create_animation(save_path: str, L: float, c_results: np.array, x_grid: np.a
 if __name__ == "__main__":
     #compute all c(x, t) points on the discrete grid (200*100)
     c_results, x_grid, t_grid = compute_pts_to_visualize(
-        model_checkpoint = "artifacts/ch_resamp_nontk_pinn_005eps.pt",
+        model_checkpoint = "artifacts/ch_resamp_nontk_tmax4_pinn_005eps.pt",
         L = 1.0, 
         T_max = 4.0
     )
 
     #create the time animation of the 1D plot
     create_animation(
-        save_path = "artifacts/ch-animation_resamp_nontk_005eps.gif",
+        save_path = "artifacts/ch-animation_resamp_nontk_tmax4_005eps.gif",
         L = 1.0, #L must be the same as in the previous function!
         c_results = c_results,
         x_grid = x_grid, 
