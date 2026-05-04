@@ -121,8 +121,6 @@ def train_model(
     print("FASE 2: TIME-MARCHING E SOLUZIONE PDE")
     print("="*40)
 
-    # curr_T_max = 0.1 * T_max
-    # checkpoint = n_epochs // 10
     collocation, c_ic_true, mu_ic_true = generate_coll_points_and_ic(N_pde, N_bc, N_ic, L, T_max, epsilon) #generate training collocation pts
 
     for epoch in range(1, n_epochs + 1):
@@ -167,7 +165,7 @@ if __name__ == "__main__":
 
     #physical parameters
     L = 1.0 #box lenght (1D)
-    T_max = 0.05 #simulation end time
+    T_max = 1.0 #simulation end time
     M = 0.1 #mobility
     epsilon = 0.05 #interface penalty term
 
@@ -193,7 +191,7 @@ if __name__ == "__main__":
     )
 
     #save the model weights
-    save_model(model, file_name = "ch_baseline_tmax005.pt")
+    save_model(model, file_name = "ch_baseline_tmax1.pt")
 
     #plot train loss vs epoch
     x_epochs = np.arange(1, n_epochs + 1)
