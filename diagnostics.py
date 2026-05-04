@@ -1,16 +1,15 @@
 import torch 
 
-from utils import compute_mass, compute_energy
-from models import CahnHilliardPINN
+from utils import compute_energy
+from models import AllenCahnPINN
 
 #function to compute mass/energy plots vs reference times (check the physics behind the output of the net)
-def compute_mass_energy(model, times, L, epsilon, n_grid = 512):
+def compute_energy(model, times, L, epsilon, n_grid = 512):
     model.eval()
 
     #initiating dictionary with diagnostics results 
     results = {
         "times": [],
-        "mass": [],
         "energy": [],
         "c_min": [],
         "c_max": []
@@ -22,31 +21,29 @@ def compute_mass_energy(model, times, L, epsilon, n_grid = 512):
 
         t = torch.full_like(x, float(time_value)) #to pass (x, t) format data to the net
 
-        c, mu = model(x, t) #calculating predictions
+        phi = model(x, t) #calculating phield prediction
 
-        c_x = torch.autograd.grad(
-            c, x, 
-            grad_outputs = torch.ones_like(c),
+        phi_x = torch.autograd.grad(
+            phi, x, 
+            grad_outputs = torch.ones_like(phi),
             retain_graph = True, 
             create_graph = True
         )[0]
 
         #compute mass and energy
-        mass = compute_mass(x, c)
-        energy = compute_energy(x, c, c_x, epsilon)
+        energy = compute_energy(x, phi, phi_x, epsilon)
 
         results["times"].append(float(time_value))
-        results["mass"].append(mass.detach().item())
         results["energy"].append(energy.detach().item())
-        results["c_min"].append(c.min().detach().item())
-        results["c_max"].append(c.max().detach().item())
+        results["c_min"].append(phi.min().detach().item())
+        results["c_max"].append(phi.max().detach().item())
 
     return results
 
 
 #function to load the PINN best model
 def load_model(model_checkpoint: str, hidden_layers: int = 4, hidden_dim: int = 128):
-    model = CahnHilliardPINN(hidden_layers = hidden_layers, hidden_dim = hidden_dim)
+    model = AllenCahnPINN(hidden_layers = hidden_layers, hidden_dim = hidden_dim)
     model.load_state_dict(torch.load(model_checkpoint))
 
     return model
@@ -57,10 +54,10 @@ if __name__ == "__main__":
     L = 1.0 #box dimension
     epsilon = 0.05 #interface penalty term
 
-    model = load_model(model_checkpoint = "artifacts/ch_baseline_lbfgs_tmax2.pt")
+    model = load_model(model_checkpoint = "artifacts/ac_baseline_().pt")
     diagnostics_times = torch.linspace(0.0, T_max, 11)
 
-    diagnostics = compute_mass_energy(
+    diagnostics = compute_energy(
         model = model, 
         times = diagnostics_times, 
         L = L, 
