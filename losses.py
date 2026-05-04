@@ -46,7 +46,7 @@ def pde_loss(model, x, t, M, epsilon):
     mse_pde_c = torch.mean(res_c**2)
     mse_pde_mu = torch.mean(res_mu**2)
 
-    return mse_pde_c + mse_pde_mu
+    return mse_pde_c + mse_pde_mu, mse_pde_c, mse_pde_mu
 
 #initial conditions term of the total loss
 def ic_loss(model, x_ic, t_ic, c_ic_true, mu_ic_true):

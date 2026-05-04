@@ -1,8 +1,9 @@
 from pathlib import Path
 import torch
+import time
 
 from losses import pde_loss, bc_loss, ic_loss
-from utils import generate_coll_points_and_ic, get_gradient_norm, add_confined_adaptive_points
+from utils import generate_coll_points_and_ic
 
 #function to train the model for just one iteration 
 def train_one_epoch(
@@ -28,7 +29,7 @@ def train_one_epoch(
     optimizer.zero_grad() #zero-ing the gradients
 
     #calculating the total loss and backpropagating
-    loss_pde = pde_loss(model, x_pde, t_pde, M, epsilon)
+    loss_pde, loss_pde_c, loss_pde_mu = pde_loss(model, x_pde, t_pde, M, epsilon)
     loss_bc = bc_loss(model, x_bc, t_bc)
     loss_ic_c, loss_ic_mu = ic_loss(model, x_ic, t_ic, c_ic_true, mu_ic_true)
 
@@ -39,41 +40,42 @@ def train_one_epoch(
 
     #printing results 
     if epoch % 10 == 0 or epoch == 1:
-        print(f"Epoch {epoch:05d} | Loss PDE: {loss_pde.item():.4e} | Loss BC: {loss_bc.item():.4e} | Loss IC (c): {loss_ic_c.item():.4e} | Loss IC (mu): {loss_ic_mu.item():.4e}")
+        print(f"Epoch {epoch:05d} | Loss PDE (c): {loss_pde_c.item():.4e} | Loss PDE (mu): {loss_pde_mu.item():.4e} | Loss BC: {loss_bc.item():.4e} | Loss IC: {(loss_ic_c + loss_ic_mu).item():.4e}")
 
-    return loss, loss_pde, loss_bc, loss_ic_c + loss_ic_mu
+    return loss, loss_pde, loss_pde_c, loss_pde_mu, loss_bc, loss_ic_c + loss_ic_mu
 
-#function to pre-train the model (to enforce the initial condition learning, setting to 0 the pde loss term)
-def pretrain_model(
-        model, 
-        optimizer, 
-        M, 
-        epsilon, 
-        pretrain_epochs
-):
-    pretrain_losses = [] #initiating history of total losses in pre-train phase
+# #function to pre-train the model (to enforce the initial condition learning, setting to 0 the pde loss term)
+# def pretrain_model(
+#         model, 
+#         optimizer, 
+#         M, 
+#         epsilon, 
+#         pretrain_epochs
+# ):
+#     pretrain_losses = [] #initiating history of total losses in pre-train phase
 
-    coll_pre, c_ic_true_pre = generate_coll_points_and_ic(
-        N_pde = 10, #just to avoid any numerical error 
-        N_bc = 2, #in this case borders are just two points: (0,0), (L,0)
-        N_ic = N_ic, 
-        L = L, 
-        T_max = 0.0
-    )
-    for epoch in range(1, pretrain_epochs + 1):
-        l_total, _, l_bc, l_ic = train_one_epoch(
-            model, 
-            coll_pre, c_ic_true_pre, 
-            optimizer, 
-            M, epsilon, 
-            epoch, 
-            ic_weight = 1.0,
-            pde_weight = 0.0 #!
-        )
+#     coll_pre, c_ic_true_pre, m_ic_true_pre = generate_coll_points_and_ic(
+#         N_pde = 10, #just to avoid any numerical error 
+#         N_bc = 2, #in this case borders are just two points: (0,0), (L,0)
+#         N_ic = N_ic, 
+#         L = L, 
+#         T_max = 0.0,
+#         epsilon = epsilon
+#     )
+#     for epoch in range(1, pretrain_epochs + 1):
+#         l_total, _, l_bc, l_ic = train_one_epoch(
+#             model, 
+#             coll_pre, c_ic_true_pre, 
+#             optimizer, 
+#             M, epsilon, 
+#             epoch, 
+#             ic_weight = 1.0,
+#             pde_weight = 0.0 #!
+#         )
 
-        pretrain_losses.append(l_total.item())
+#         pretrain_losses.append(l_total.item())
 
-    return pretrain_losses
+#     return pretrain_losses
 
 
 
@@ -82,7 +84,10 @@ def train_model(
     model, 
     optimizer, 
     M, 
-    epsilon, 
+    epsilon,
+    collocation, #collocation points dictionary
+    c_ic_true, #true initial concentration profile (c(x, 0))
+    mu_ic_true, #true initial potential profile (mu(x, 0))
     n_epochs: int = 10000,
     pretrain_epochs: int = 1000,
     ic_weight: float = 100.0,
@@ -93,27 +98,29 @@ def train_model(
     train_losses = {
         "total": [],
         "pde": [],
+        "pde_c": [],
+        "pde_mu": [],
         "bc": [],
         "ic": []
     }
 
-    if pretrain_epochs > 0:
-        #PRE-TRAINING PHASE (just IC training, setting pde loss term weight to 0)
-        #-------------------------------------
-        print("\n" + "="*40)
-        print("FASE 1: PRE-TRAINING CONDIZIONE INIZIALE")
-        print("="*40)
+    # if pretrain_epochs > 0:
+    #     #PRE-TRAINING PHASE (just IC training, setting pde loss term weight to 0)
+    #     #-------------------------------------
+    #     print("\n" + "="*40)
+    #     print("FASE 1: PRE-TRAINING CONDIZIONE INIZIALE")
+    #     print("="*40)
 
-        #pre-train the model and save losses history on initial conditions 
-        pretrain_losses = pretrain_model(
-            model, 
-            optimizer, 
-            M, 
-            epsilon, 
-            pretrain_epochs
-        )
-    else:
-        pretrain_losses = None
+    #     #pre-train the model and save losses history on initial conditions 
+    #     pretrain_losses = pretrain_model(
+    #         model, 
+    #         optimizer, 
+    #         M, 
+    #         epsilon, 
+    #         pretrain_epochs
+    #     )
+    # else:
+    #     pretrain_losses = None
 
     #TRAINING PHASE (w/ resampling)
     #-------------------------------------
@@ -121,11 +128,9 @@ def train_model(
     print("FASE 2: TIME-MARCHING E SOLUZIONE PDE")
     print("="*40)
 
-    collocation, c_ic_true, mu_ic_true = generate_coll_points_and_ic(N_pde, N_bc, N_ic, L, T_max, epsilon) #generate training collocation pts
-
     for epoch in range(1, n_epochs + 1):
 
-        l_total, l_pde, l_bc, l_ic = train_one_epoch(
+        l_total, l_pde, l_pde_c, l_pde_mu, l_bc, l_ic = train_one_epoch(
             model, 
             collocation, 
             c_ic_true,
@@ -142,10 +147,88 @@ def train_model(
         #update losses history with current values
         train_losses["total"].append(l_total.item())
         train_losses["pde"].append(l_pde.item())
+        train_losses["pde_c"].append(l_pde_c.item())
+        train_losses["pde_mu"].append(l_pde_mu.item())
         train_losses["bc"].append(l_bc.item())
         train_losses["ic"].append(l_ic.item())
 
-    return pretrain_losses, train_losses
+    # return pretrain_losses, train_losses
+    return train_losses
+
+#function to perform the training refinement with l-bfgs algorithm (post-Adam)
+def train_lbfgs(
+    model,
+    collocation,
+    c_ic_true,
+    mu_ic_true,
+    M,
+    epsilon,
+    max_iter=200,
+    ic_weight=100.0,
+    bc_weight=10.0,
+    pde_weight=1.0,
+):
+    model.train()
+
+    optimizer = torch.optim.LBFGS(
+        model.parameters(),
+        lr=1.0,
+        max_iter=max_iter,
+        max_eval=max_iter * 2,
+        history_size=50,
+        tolerance_grad=1e-10,
+        tolerance_change=1e-12,
+        line_search_fn="strong_wolfe",
+    )
+
+    x_pde, t_pde = collocation["x_pde"], collocation["t_pde"]
+    x_bc, t_bc = collocation["x_bc"], collocation["t_bc"]
+    x_ic, t_ic = collocation["x_ic"], collocation["t_ic"]
+
+    history = {
+        "total": [],
+        "pde": [],
+        "bc": [],
+        "ic": [],
+    }
+
+    def closure():
+        optimizer.zero_grad()
+
+        loss_pde, loss_pde_c, loss_pde_mu = pde_loss(model, x_pde, t_pde, M, epsilon)
+        loss_bc = bc_loss(model, x_bc, t_bc)
+        loss_ic_c, loss_ic_mu = ic_loss(
+            model, x_ic, t_ic, c_ic_true, mu_ic_true
+        )
+
+        loss_ic = loss_ic_c + loss_ic_mu
+        loss = (
+            pde_weight * loss_pde
+            + bc_weight * loss_bc
+            + ic_weight * loss_ic
+        )
+
+        loss.backward()
+
+        history["total"].append(loss.item())
+        history["pde"].append(loss_pde.item())
+        history["bc"].append(loss_bc.item())
+        history["ic"].append(loss_ic.item())
+
+        return loss
+
+    optimizer.step(closure)
+
+    print("\nL-BFGS refinement completed.")
+    print(
+        f"Final L-BFGS | "
+        f"Total: {history['total'][-1]:.4e} | "
+        f"PDE: {history['pde'][-1]:.4e} | "
+        f"BC: {history['bc'][-1]:.4e} | "
+        f"IC: {history['ic'][-1]:.4e}"
+    )
+
+    return history
 
 #function to save the model weights
 def save_model(model, file_name: str):
@@ -179,24 +262,48 @@ if __name__ == "__main__":
     optimizer = Adam(model.parameters(), lr = 1e-3)
 
     n_epochs = 5000
+    collocation, c_ic_true, mu_ic_true = generate_coll_points_and_ic(N_pde, N_bc, N_ic, L, T_max, epsilon) #generate training collocation pts
 
+    start_time = time.time()
     #training the model for n_epochs
-    pretrain_losses, train_losses = train_model(
+    train_losses = train_model(
         model, 
         optimizer, 
         M, 
         epsilon, 
+        collocation, 
+        c_ic_true, 
+        mu_ic_true,
         n_epochs,
-        pretrain_epochs = 0
+        pretrain_epochs = 0,
+        ic_weight = 100.0, 
+        bc_weight = 10.0, 
+        pde_weight = 1.0
     )
 
+    #refining the training with lbfgs
+    lbfgs_losses = train_lbfgs(
+        model=model,
+        collocation=collocation,
+        c_ic_true=c_ic_true,
+        mu_ic_true=mu_ic_true,
+        M=M,
+        epsilon=epsilon,
+        max_iter=500,
+        ic_weight=100.0,
+        bc_weight=10.0,
+        pde_weight=1.0,
+    )
+    print(f"Tempo di esecuzione: {time.time() - start_time:.2f}s")
+
     #save the model weights
-    save_model(model, file_name = "ch_baseline_tmax1.pt")
+    save_model(model, file_name = "ch_baseline_lbfgs_tmax1.pt")
 
     #plot train loss vs epoch
     x_epochs = np.arange(1, n_epochs + 1)
 
-    plt.plot(x_epochs, train_losses["pde"], label = "pde")
+    plt.plot(x_epochs, train_losses["pde_c"], label = "pde (c)")
+    plt.plot(x_epochs, train_losses["pde_mu"], label = "pde (mu)")
     plt.plot(x_epochs, train_losses["bc"], label = "bc")
     plt.plot(x_epochs, train_losses["ic"], label = "ic")
 
