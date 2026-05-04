@@ -11,8 +11,8 @@ def compute_energy(model, times, L, epsilon, n_grid = 512):
     results = {
         "times": [],
         "energy": [],
-        "c_min": [],
-        "c_max": []
+        "phi_min": [],
+        "phi_max": []
     }
 
     for time_value in times:
@@ -35,8 +35,8 @@ def compute_energy(model, times, L, epsilon, n_grid = 512):
 
         results["times"].append(float(time_value))
         results["energy"].append(energy.detach().item())
-        results["c_min"].append(phi.min().detach().item())
-        results["c_max"].append(phi.max().detach().item())
+        results["phi_min"].append(phi.min().detach().item())
+        results["phi_max"].append(phi.max().detach().item())
 
     return results
 
@@ -69,20 +69,17 @@ if __name__ == "__main__":
     print("\nDIAGNOSTICHE FISICHE")
     print("=" * 80)
 
-    m0 = diagnostics["mass"][0]
     e0 = diagnostics["energy"][0]
     # a0 = diagnostics["mode1_amp"][0]
 
-    for t, m, e, cmin, cmax in zip(
+    for t, e, phimin, phimax in zip(
         diagnostics["times"],
-        diagnostics["mass"],
         diagnostics["energy"],
-        diagnostics["c_min"],
-        diagnostics["c_max"],
+        diagnostics["phi_min"],
+        diagnostics["phi_max"],
     ):
         print(
             f"t={t:.3f} | "
-            f"mass={m:+.8e} | Δmass={m-m0:+.2e} | "
             f"energy={e:.8e} | ΔE={e-e0:+.2e} | "
-            f"c∈[{cmin:+.4f}, {cmax:+.4f}]"
+            f"phi∈[{phimin:+.4f}, {phimax:+.4f}]"
         )
