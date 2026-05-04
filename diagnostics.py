@@ -57,7 +57,7 @@ if __name__ == "__main__":
     L = 1.0 #box dimension
     epsilon = 0.05 #interface penalty term
 
-    model = load_model(model_checkpoint = "artifacts/ac_baseline_lbfgs_tmax1.pt")
+    model = load_model(model_checkpoint = "artifacts/ac_baseline_lbfgs_tmax1_asymmIC.pt")
     diagnostics_times = torch.linspace(0.0, T_max, 11)
 
     diagnostics = compute_energy_diagnostics(

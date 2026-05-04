@@ -2,7 +2,7 @@ import torch
 
 #initial condition function for phield phi
 def initial_phi(x):
-    return 0.3 * torch.cos(torch.pi * x)
+    return 0.2 + 0.15 * torch.cos(torch.pi * x)
 
 #function that generates a dict of all collocation points (pde, bc, ic) randomly generated to train the network
 def generate_coll_points_and_ic(N_pde, N_bc, N_ic, L, T_max, epsilon):

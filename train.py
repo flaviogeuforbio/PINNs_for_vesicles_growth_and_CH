@@ -252,7 +252,7 @@ if __name__ == "__main__":
     model = AllenCahnPINN(hidden_layers = 4, hidden_dim = 128)
     optimizer = Adam(model.parameters(), lr = 1e-3)
 
-    n_epochs = 5000
+    n_epochs = 3000
     collocation, phi_ic_true = generate_coll_points_and_ic(N_pde, N_bc, N_ic, L, T_max, epsilon) #generate training collocation pts
 
     start_time = time.time()
@@ -278,7 +278,7 @@ if __name__ == "__main__":
         phi_ic_true = phi_ic_true,
         M=M,
         epsilon=epsilon,
-        max_iter=200,
+        max_iter=100,
         ic_weight=100.0,
         bc_weight=10.0,
         pde_weight=1.0,
@@ -286,7 +286,7 @@ if __name__ == "__main__":
     print(f"Tempo di esecuzione: {time.time() - start_time:.2f}s")
 
     #save the model weights
-    save_model(model, file_name = "ac_baseline_lbfgs_tmax1.pt")
+    save_model(model, file_name = "ac_baseline_lbfgs_tmax1_asymmIC.pt")
 
     #plot train loss vs epoch
     x_epochs = np.arange(1, n_epochs + 1)
