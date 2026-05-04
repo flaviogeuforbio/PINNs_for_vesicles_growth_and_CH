@@ -239,7 +239,7 @@ if __name__ == "__main__":
 
     #physical parameters
     L = 1.0 #box lenght (1D)
-    T_max = 2.0 #simulation end time
+    T_max = 1.0 #simulation end time
     M = 0.1 #mobility
     epsilon = 0.05 #interface penalty term
 
@@ -278,7 +278,7 @@ if __name__ == "__main__":
         phi_ic_true = phi_ic_true,
         M=M,
         epsilon=epsilon,
-        max_iter=500,
+        max_iter=200,
         ic_weight=100.0,
         bc_weight=10.0,
         pde_weight=1.0,
@@ -286,7 +286,7 @@ if __name__ == "__main__":
     print(f"Tempo di esecuzione: {time.time() - start_time:.2f}s")
 
     #save the model weights
-    save_model(model, file_name = "ac_baseline_().pt")
+    save_model(model, file_name = "ac_baseline_lbfgs_tmax1.pt")
 
     #plot train loss vs epoch
     x_epochs = np.arange(1, n_epochs + 1)

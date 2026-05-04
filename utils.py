@@ -41,6 +41,8 @@ def compute_energy(x, phi, phi_x, epsilon):
     density = 0.25 * (phi**2 - 1.0)**2 + 0.5 * epsilon**2 * phi_x**2 #free energy density
     return torch.trapz(density.squeeze(), x.squeeze()) 
 
+def compute_meanphi(x, phi):
+    return torch.trapz(phi.squeeze(), x.squeeze())
 
 
 

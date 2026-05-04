@@ -63,16 +63,16 @@ def create_animation(save_path: str, L: float, phi_results: np.array, x_grid: np
     plt.show()
 
 if __name__ == "__main__":
-    #compute all c(x, t) points on the discrete grid (200*100)
+    #compute all phi(x, t) points on the discrete grid (200*100)
     phi_results, x_grid, t_grid = compute_pts_to_visualize(
-        model_checkpoint = "artifacts/ac_baseline_().pt",
+        model_checkpoint = "artifacts/ac_baseline_lbfgs_tmax1.pt",
         L = 1.0, 
-        T_max = 2.0
+        T_max = 1.0
     )
 
     #create the time animation of the 1D plot
     create_animation(
-        save_path = "artifacts/ac-animation_baseline_().gif",
+        save_path = "artifacts/ac-animation_baseline_lbfgs_tmax1.gif",
         L = 1.0, #L must be the same as in the previous function!
         phi_results = phi_results,
         x_grid = x_grid, 
