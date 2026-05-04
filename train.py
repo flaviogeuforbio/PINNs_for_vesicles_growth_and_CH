@@ -30,7 +30,7 @@ def train_one_epoch(
     #calculating the total loss and backpropagating
     loss_pde = pde_loss(model, x_pde, t_pde, M, epsilon)
     loss_bc = bc_loss(model, x_bc, t_bc)
-    loss_ic = ic_loss(model, x_ic, t_ic, c_ic_true, mu_ic_true)
+    loss_ic = ic_loss(model, x_ic, t_ic, phi_ic_true)
 
     loss = pde_weight * loss_pde + bc_weight * loss_bc + ic_weight * loss_ic
     loss.backward()
