@@ -248,7 +248,7 @@ if __name__ == "__main__":
 
     #physical parameters
     L = 1.0 #box lenght (1D)
-    T_max = 2.0 #simulation end time
+    T_max = 1.0 #simulation end time
     M = 0.1 #mobility
     epsilon = 0.05 #interface penalty term
 
@@ -261,7 +261,7 @@ if __name__ == "__main__":
     model = CahnHilliardPINN(hidden_layers = 4, hidden_dim = 128)
     optimizer = Adam(model.parameters(), lr = 1e-3)
 
-    n_epochs = 5000
+    n_epochs = 3000
     collocation, c_ic_true, mu_ic_true = generate_coll_points_and_ic(N_pde, N_bc, N_ic, L, T_max, epsilon) #generate training collocation pts
 
     start_time = time.time()
@@ -289,7 +289,7 @@ if __name__ == "__main__":
         mu_ic_true=mu_ic_true,
         M=M,
         epsilon=epsilon,
-        max_iter=500,
+        max_iter=100,
         ic_weight=100.0,
         bc_weight=10.0,
         pde_weight=1.0,
@@ -297,7 +297,7 @@ if __name__ == "__main__":
     print(f"Tempo di esecuzione: {time.time() - start_time:.2f}s")
 
     #save the model weights
-    save_model(model, file_name = "ch_baseline_lbfgs_tmax2.pt")
+    save_model(model, file_name = "ch_baseline_lbfgs_tmax1_asymmIC.pt")
 
     #plot train loss vs epoch
     x_epochs = np.arange(1, n_epochs + 1)
@@ -312,6 +312,5 @@ if __name__ == "__main__":
     
     plt.legend()
     plt.show()
-
 
 

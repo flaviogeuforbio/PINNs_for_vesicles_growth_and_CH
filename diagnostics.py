@@ -53,11 +53,11 @@ def load_model(model_checkpoint: str, hidden_layers: int = 4, hidden_dim: int = 
 
 
 if __name__ == "__main__":
-    T_max = 2.0 #simulation end time
+    T_max = 1.0 #simulation end time
     L = 1.0 #box dimension
     epsilon = 0.05 #interface penalty term
 
-    model = load_model(model_checkpoint = "artifacts/ch_baseline_lbfgs_tmax2.pt")
+    model = load_model(model_checkpoint = "artifacts/ch_baseline_lbfgs_tmax1_asymmIC.pt")
     diagnostics_times = torch.linspace(0.0, T_max, 11)
 
     diagnostics = compute_mass_energy(
