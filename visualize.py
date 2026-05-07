@@ -64,19 +64,30 @@ def create_animation(save_path: str, L: float, phi_results: np.array, x_grid: np
     plt.show()
 
 if __name__ == "__main__":
+    import argparse
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument("--model_checkpoint", type=str, required = True)
+    parser.add_argument("--tmax", type=float, default=1.0, help = "End time of the simulation")
+    parser.add_argument("--outpath", type=str, required = True)
+
+    args = parser.parse_args()
+
     #setting device
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print("Using device:", device)  
 
     #compute all phi(x, t) points on the discrete grid (200*100)
+    model_checkpoint = "/".join(["artifacts", args.model_checkpoint])
     phi_results, x_grid, t_grid = compute_pts_to_visualize(
         model_checkpoint = "artifacts/ac_baseline_lbfgs_tmax1_asymmIC.pt",
         L = 1.0, 
-        T_max = 1.0,
+        T_max = args.tmax,
         device = device
     )
 
     #create the time animation of the 1D plot
+    save_path = "/".join(["artifacts", args.outpath])
     create_animation(
         save_path = "artifacts/ac-animation_baseline_lbfgs_tmax1_asymmIC.gif",
         L = 1.0, #L must be the same as in the previous function!

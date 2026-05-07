@@ -234,28 +234,42 @@ if __name__ == "__main__":
     from torch.optim import Adam
     import matplotlib.pyplot as plt
     import numpy as np
+    import argparse
 
     from models import AllenCahnPINN 
+
+    #adding CLI parser
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument("--tmax", type=float, default=1.0, help = "End time of the simulation")
+    parser.add_argument("--epsilon", type=float, default=0.05, help = "Interface penalty term epsilon")
+    parser.add_argument("--epochs", type=int, default=3000, help = "N. of training epochs")
+    parser.add_argument("--lbfgs_iter", type=int, default=50, help = "N. of L-BFGS iterations")
+    parser.add_argument("--n_pde", type=int, default=10000, help = "N. of PDE collocation points")
+    parser.add_argument("--n_bc", type=int, default=2000, help = "N. of BC collocation points")
+    parser.add_argument("--n_ic", type=int, default=2000, help = "N. of IC collocation points")
+    parser.add_argument("--outpath", type=str, required=True, help = "model checkpoint name")
+    args = parser.parse_args()
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print("Using device:", device)   
 
     #physical parameters
     L = 1.0 #box lenght (1D)
-    T_max = 1.0 #simulation end time
+    T_max = args.tmax #simulation end time
     M = 0.1 #mobility
-    epsilon = 0.05 #interface penalty term
+    epsilon = args.epsilon #interface penalty term
 
     #number of collocation points 
-    N_pde = 10000 #inside the domain 
-    N_bc = 2000 #on the boundaries 
-    N_ic = 2000 #for initial time
+    N_pde = args.n_pde #inside the domain 
+    N_bc = args.n_bc #on the boundaries 
+    N_ic = args.n_ic #for initial time
 
     #create model and set Adam optimizer
     model = AllenCahnPINN(hidden_layers = 4, hidden_dim = 128).to(device)
     optimizer = Adam(model.parameters(), lr = 1e-3)
 
-    n_epochs = 3000
+    n_epochs = args.epochs
     collocation, phi_ic_true = generate_coll_points_and_ic(N_pde, N_bc, N_ic, L, T_max, device) #generate training collocation pts
 
     start_time = time.time()
@@ -281,7 +295,7 @@ if __name__ == "__main__":
         phi_ic_true = phi_ic_true,
         M=M,
         epsilon=epsilon,
-        max_iter=100,
+        max_iter=args.lbfgs_iter,
         ic_weight=100.0,
         bc_weight=10.0,
         pde_weight=1.0,
@@ -289,7 +303,7 @@ if __name__ == "__main__":
     print(f"Tempo di esecuzione: {time.time() - start_time:.2f}s")
 
     #save the model weights
-    save_model(model, file_name = "ac_baseline_lbfgs_tmax1_asymmIC.pt")
+    save_model(model, file_name = args.outpath)
 
     #plot train loss vs epoch
     x_epochs = np.arange(1, n_epochs + 1)
