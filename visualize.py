@@ -6,10 +6,10 @@ from matplotlib.animation import FuncAnimation
 from models import AllenCahnPINN
 
 #function to create model, compute all points (c, t) needed to generate the animation
-def compute_pts_to_visualize(model_checkpoint: str, L: float, T_max: float, N_x_plot: int = 200, N_t_plot: int = 100):
+def compute_pts_to_visualize(model_checkpoint, L, T_max, device, N_x_plot: int = 200, N_t_plot: int = 100):
 
     #initialize and load best checkpoint for PINN model
-    model = AllenCahnPINN(hidden_layers=4, hidden_dim=128)
+    model = AllenCahnPINN(hidden_layers=4, hidden_dim=128).to(device)
     model.load_state_dict(torch.load(model_checkpoint))
     model.eval() 
     
@@ -23,12 +23,13 @@ def compute_pts_to_visualize(model_checkpoint: str, L: float, T_max: float, N_x_
     #inference
     with torch.no_grad(): # Disattiviamo i gradienti per velocizzare
         for i, t_val in enumerate(t_grid):
-            x_tensor = torch.tensor(x_grid, dtype=torch.float32).view(-1, 1)
+            x_tensor = torch.tensor(x_grid, dtype=torch.float32).view(-1, 1).to(device)
             t_tensor = torch.ones_like(x_tensor) * t_val #same t repeated for N_x_plot times
-            
+            t_tensor = t_tensor.to(device)
+
             phi_pred = model(x_tensor, t_tensor) #prediction
             
-            phi_results[i, :] = phi_pred.numpy().flatten() #saving results
+            phi_results[i, :] = phi_pred.cpu().numpy().flatten() #saving results
 
     return phi_results, x_grid, t_grid
 
@@ -63,11 +64,16 @@ def create_animation(save_path: str, L: float, phi_results: np.array, x_grid: np
     plt.show()
 
 if __name__ == "__main__":
+    #setting device
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print("Using device:", device)  
+
     #compute all phi(x, t) points on the discrete grid (200*100)
     phi_results, x_grid, t_grid = compute_pts_to_visualize(
         model_checkpoint = "artifacts/ac_baseline_lbfgs_tmax1_asymmIC.pt",
         L = 1.0, 
-        T_max = 1.0
+        T_max = 1.0,
+        device = device
     )
 
     #create the time animation of the 1D plot
