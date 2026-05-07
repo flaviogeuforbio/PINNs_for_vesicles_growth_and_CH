@@ -244,7 +244,11 @@ if __name__ == "__main__":
     import matplotlib.pyplot as plt
     import numpy as np
 
-    from models import CahnHilliardPINN    
+    from models import CahnHilliardPINN 
+
+    #setting the device
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print("Using device:", device)   
 
     #physical parameters
     L = 1.0 #box lenght (1D)
@@ -258,11 +262,11 @@ if __name__ == "__main__":
     N_ic = 2000 #for initial time
 
     #create model and set Adam optimizer
-    model = CahnHilliardPINN(hidden_layers = 4, hidden_dim = 128)
+    model = CahnHilliardPINN(hidden_layers = 4, hidden_dim = 128).to(device)
     optimizer = Adam(model.parameters(), lr = 1e-3)
 
     n_epochs = 3000
-    collocation, c_ic_true, mu_ic_true = generate_coll_points_and_ic(N_pde, N_bc, N_ic, L, T_max, epsilon) #generate training collocation pts
+    collocation, c_ic_true, mu_ic_true = generate_coll_points_and_ic(N_pde, N_bc, N_ic, L, T_max, epsilon, device) #generate training collocation pts
 
     start_time = time.time()
     #training the model for n_epochs
