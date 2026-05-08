@@ -16,7 +16,7 @@ def evaluate_diagnostics(
     model.eval()
 
     results = {
-        "time": [],
+        "times": [],
         "energy": [],
         "mass_c": [],
         "mean_phi": [],
