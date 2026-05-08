@@ -46,11 +46,14 @@ def train_one_epoch(
 
     return {
         "total": loss.item(),
+        "pde": loss_pde.item(),
         "pde_phi": loss_pde_phi.item(),
         "pde_c": loss_pde_c.item(),
+        "bc": loss_bc.item(),
         "bc_phi": loss_bc_phi.item(),
         "bc_c": loss_bc_c.item(),
         "bc_mu": loss_bc_mu.item(),
+        "ic": loss_ic.item(),
         "ic_phi": loss_ic_phi.item(),
         "ic_c": loss_ic_c.item(),
         "ic_mu": loss_ic_mu.item()
