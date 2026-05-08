@@ -266,7 +266,8 @@ if __name__ == "__main__":
     parser.add_argument("--n_pde", type=int, default=10000, help = "N. of PDE collocation points")
     parser.add_argument("--n_bc", type=int, default=2000, help = "N. of BC collocation points")
     parser.add_argument("--n_ic", type=int, default=2000, help = "N. of IC collocation points")
-    parser.add_argument("--outpath", type=str, required=True, help = "model checkpoint name")
+    parser.add_argument("--checkpoint_name", type=str, required=True, help = "Model checkpoint name")
+    parser.add_argument("--lossplot_name", type=str, required=True, help = "Training losses plot name")
     args = parser.parse_args()
 
     #setting the device
@@ -333,19 +334,27 @@ if __name__ == "__main__":
     print(f"Tempo di esecuzione: {time.time() - start_time:.2f}s")
 
     #save the model weights
-    save_model(model, file_name = args.outpath)
+    save_model(model, file_name = args.checkpoint_name)
 
     #plot train loss vs epoch
     x_epochs = np.arange(1, n_epochs + 1)
 
-    plt.plot(x_epochs, train_losses["pde_phi"], label = "pde (phi)")
-    plt.plot(x_epochs, train_losses["pde_c"], label = "pde (c)")
-    plt.plot(x_epochs, train_losses["pde_mu"], label = "pde (mu)")
-    plt.plot(x_epochs, train_losses["bc"], label = "bc")
-    plt.plot(x_epochs, train_losses["ic"], label = "ic")
+    out_dir = Path("artifacts/coupled")
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    plt.figure(figsize=(8, 5))
+
+    plt.semilogy(x_epochs, train_losses["pde_phi"], label="PDE phi")
+    plt.semilogy(x_epochs, train_losses["pde_c"], label="PDE c")
+    plt.semilogy(x_epochs, train_losses["pde_mu"], label="PDE mu")
+    plt.semilogy(x_epochs, train_losses["bc"], label="BC")
+    plt.semilogy(x_epochs, train_losses["ic"], label="IC")
 
     plt.xlabel("Epochs")
     plt.ylabel("Train loss")
-    
+    plt.title("Coupled AC-CH 1D training losses")
     plt.legend()
-    plt.show()
+    plt.grid(True, which="both", linestyle="--", alpha=0.5)
+
+    plt.savefig(out_dir / args.lossplot_name, dpi=200, bbox_inches="tight")
+    plt.close()
