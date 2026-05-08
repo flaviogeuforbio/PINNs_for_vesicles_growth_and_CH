@@ -2,7 +2,7 @@ from pathlib import Path
 import torch
 import time
 
-from ac_losses import pde_loss, bc_loss, ic_loss
+from losses_ac import pde_loss, bc_loss, ic_loss
 from utils_ac import generate_coll_points_and_ic
 
 #function to train the model for just one iteration 
