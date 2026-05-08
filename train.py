@@ -244,7 +244,7 @@ if __name__ == "__main__":
     parser.add_argument("--tmax", type=float, default=1.0, help = "End time of the simulation")
     parser.add_argument("--epsilon", type=float, default=0.05, help = "Interface penalty term epsilon")
     parser.add_argument("--epochs", type=int, default=3000, help = "N. of training epochs")
-    parser.add_argument("--lbfgs_iter", type=int, default=50, help = "N. of L-BFGS iterations")
+    parser.add_argument("--lbfgs_iter", type=int, default=100, help = "N. of L-BFGS iterations")
     parser.add_argument("--n_pde", type=int, default=10000, help = "N. of PDE collocation points")
     parser.add_argument("--n_bc", type=int, default=2000, help = "N. of BC collocation points")
     parser.add_argument("--n_ic", type=int, default=2000, help = "N. of IC collocation points")
