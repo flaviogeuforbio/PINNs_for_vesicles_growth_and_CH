@@ -2,8 +2,8 @@ from pathlib import Path
 import torch
 import time
 
-from losses import pde_loss, bc_loss, ic_loss
-from utils import generate_coll_points_and_ic
+from losses_ch import pde_loss, bc_loss, ic_loss
+from utils_ch import generate_coll_points_and_ic
 
 #function to train the model for just one iteration 
 def train_one_epoch(

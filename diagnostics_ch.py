@@ -1,6 +1,6 @@
 import torch 
 
-from utils import compute_mass, compute_energy
+from utils_ch import compute_mass, compute_energy
 from models import CahnHilliardPINN
 
 #function to compute mass/energy plots vs reference times (check the physics behind the output of the net)
