@@ -49,6 +49,7 @@ def train_one_epoch(
         "pde": loss_pde.item(),
         "pde_phi": loss_pde_phi.item(),
         "pde_c": loss_pde_c.item(),
+        "pde_mu": loss_pde_mu.item(),
         "bc": loss_bc.item(),
         "bc_phi": loss_bc_phi.item(),
         "bc_c": loss_bc_c.item(),
