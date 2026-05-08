@@ -83,10 +83,11 @@ def load_model(model_checkpoint: str, hidden_layers: int = 4, hidden_dim: int = 
 
 if __name__ == "__main__":
     import argparse
+    from pathlib import Path
 
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("--model_checkpoint", type=str, required = True, help = "File name of model checkpoint used")
+    parser.add_argument("--checkpoint_name", type=str, required = True, help = "File name of model checkpoint used")
     parser.add_argument("--tmax", type=float, default=1.0, help = "End time of the simulation")
     parser.add_argument("--eps_phi", type=float, default=0.05, help = "Interface penalty term epsilon for phi")
     parser.add_argument("--eps_c", type=float, default=0.05, help = "Interface penalty term epsilon for c")
@@ -104,8 +105,10 @@ if __name__ == "__main__":
     eps_c = args.eps_c #interface penalty term for c
     gamma = args.gamma #coupling par.
 
-    model_checkpoint = "/".join(["artifacts/coupled", args.model_checkpoint])
-    model = load_model(model_checkpoint = model_checkpoint)
+    check_dir = Path("artifacts/coupled/weights")
+    check_dir.mkdir(parents=True, exist_ok=True)
+
+    model = load_model(model_checkpoint = check_dir / args.checkpoint_name)
     model = model.to(device)
     diagnostics_times = torch.linspace(0.0, T_max, 11)
 
