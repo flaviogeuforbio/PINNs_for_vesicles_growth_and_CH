@@ -33,7 +33,7 @@ def initial_fields(x, eps_c, gamma):
     c_0 = initial_c(x_clone) 
     phi_0 = initial_phi(x_clone)
 
-    c0_xx = second_derivative(c_0, x)
+    c0_xx = second_derivative(c_0, x_clone)
     mu_0 = c_0**3 - c_0 - eps_c**2 * c0_xx + gamma * phi_0 #initial mu_0 from c_0
 
     return phi_0.detach(), c_0.detach(), mu_0.detach()
