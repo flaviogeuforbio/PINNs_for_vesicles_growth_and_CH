@@ -90,7 +90,7 @@ if __name__ == "__main__":
     #create the time animation of the 1D plot
     save_path = "/".join(["artifacts", args.outpath])
     create_animation(
-        save_path = "artifacts/ch-animation_baseline_lbfgs_tmax1_asymmIC.gif",
+        save_path = save_path,
         L = 1.0, #L must be the same as in the previous function!
         c_results = c_results,
         x_grid = x_grid, 

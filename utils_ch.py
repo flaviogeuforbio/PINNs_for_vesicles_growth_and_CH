@@ -4,7 +4,7 @@ import torch
 def initial_c(x):
     return 0.2 + 0.15 * torch.cos(torch.pi * x) #trying a new 'asymmetric' IC
 
-#initial condition function for potential mu
+#initial condition function for c, mu
 def initial_c_mu(x, epsilon):
     x_clone = x.clone().detach().requires_grad_(True) #to avoid autograd errors
 
