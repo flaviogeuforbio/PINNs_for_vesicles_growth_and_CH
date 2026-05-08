@@ -62,7 +62,7 @@ def evaluate_diagnostics(
         mass_c = compute_integral(x, c)
         mean_phi = compute_integral(x, phi)
 
-        results["time"].append(float(time_value))
+        results["times"].append(float(time_value))
         results["energy"].append(float(energy.detach().cpu()))
         results["mass_c"].append(float(mass_c.detach().cpu()))
         results["mean_phi"].append(float(mean_phi.detach().cpu()))
