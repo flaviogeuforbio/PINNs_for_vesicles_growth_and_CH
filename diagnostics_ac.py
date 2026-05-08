@@ -1,6 +1,6 @@
 import torch 
 
-from utils import compute_energy, compute_meanphi
+from utils_ac import compute_energy, compute_meanphi
 from models import AllenCahnPINN
 
 #function to compute mass/energy plots vs reference times (check the physics behind the output of the net)
