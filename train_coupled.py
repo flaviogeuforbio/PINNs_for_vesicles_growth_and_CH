@@ -42,7 +42,7 @@ def train_one_epoch(
 
     #printing results 
     if epoch % 10 == 0 or epoch == 1:
-        print(f"Epoch {epoch:05d} | Loss PDE (c): {loss_pde_c.item():.4e} | Loss PDE (mu): {loss_pde_mu.item():.4e} | Loss BC: {loss_bc.item():.4e} | Loss IC: {(loss_ic_c + loss_ic_mu).item():.4e}")
+        print(f"Epoch {epoch:05d} | Loss PDE (phi): {loss_pde_phi.item():.4e} | Loss PDE (c): {loss_pde_c.item():.4e} | Loss PDE (mu): {loss_pde_mu.item():.4e} | Loss BC: {loss_bc.item():.4e} | Loss IC: {(loss_ic_c + loss_ic_mu).item():.4e}")
 
     return {
         "total": loss.item(),
@@ -338,6 +338,7 @@ if __name__ == "__main__":
     #plot train loss vs epoch
     x_epochs = np.arange(1, n_epochs + 1)
 
+    plt.plot(x_epochs, train_losses["pde_phi"], label = "pde (phi)")
     plt.plot(x_epochs, train_losses["pde_c"], label = "pde (c)")
     plt.plot(x_epochs, train_losses["pde_mu"], label = "pde (mu)")
     plt.plot(x_epochs, train_losses["bc"], label = "bc")
