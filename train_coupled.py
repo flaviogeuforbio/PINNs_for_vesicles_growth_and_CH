@@ -237,7 +237,7 @@ def train_lbfgs(
 
 #function to save the model weights
 def save_model(model, file_name: str):
-    checkpoint_dir = Path(__file__).resolve().parents[0] / "artifacts" / "coupled"
+    checkpoint_dir = Path("artifacts/coupled/weights")
     checkpoint_dir.mkdir(parents=True, exist_ok = True) #check if folder exists, if not create it
     checkpoint_path = checkpoint_dir / file_name
 
@@ -339,7 +339,7 @@ if __name__ == "__main__":
     #plot train loss vs epoch
     x_epochs = np.arange(1, n_epochs + 1)
 
-    out_dir = Path("artifacts/coupled")
+    out_dir = Path("artifacts/coupled/lossplots")
     out_dir.mkdir(parents=True, exist_ok=True)
 
     plt.figure(figsize=(8, 5))

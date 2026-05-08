@@ -131,12 +131,13 @@ def create_animation(save_path: str, L: float, phi_results: np.array, c_results:
 
 if __name__ == "__main__":
     import argparse
+    from pathlib import Path
 
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("--model_checkpoint", type=str, required = True, help = "File name of model checkpoint used")
+    parser.add_argument("--checkpoint_name", type=str, required = True, help = "File name of model checkpoint used")
     parser.add_argument("--tmax", type=float, default=1.0, help = "End time of the simulation")
-    parser.add_argument("--outpath", type=str, required = True, help = "File name of output gif")
+    parser.add_argument("--gif_name", type=str, required = True, help = "File name of output gif")
 
     args = parser.parse_args()
 
@@ -145,18 +146,22 @@ if __name__ == "__main__":
     print("Using device:", device)  
 
     #compute all c(x, t) points on the discrete grid (200*100)
-    model_checkpoint = "/".join(["artifacts/coupled", args.model_checkpoint])
+    check_dir = Path("artifacts/coupled/weights")
+    check_dir.mkdir(parents=True, exist_ok=True)
+
     phi_results, c_results, x_grid, t_grid = compute_pts_to_visualize(
-        model_checkpoint = model_checkpoint,
+        model_checkpoint = check_dir / args.checkpoint_name,
         L = 1.0, 
         T_max = args.tmax,
         device = device
     )
 
     #create the time animation of the 1D plot
-    save_path = "/".join(["artifacts", args.outpath])
+    save_dir = Path("artifacts/coupled/animations")
+    save_dir.mkdir(parents=True, exist_ok=True)
+
     create_animation(
-        save_path = save_path,
+        save_path = save_dir / args.gif_name,
         L = 1.0, #L must be the same as in the previous function!
         phi_results = phi_results, 
         c_results = c_results,
