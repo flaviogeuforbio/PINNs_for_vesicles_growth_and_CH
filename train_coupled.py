@@ -62,6 +62,54 @@ def train_one_epoch(
     }
 
 
+#function to pre-train the model on IC only 
+def pretrain_initial_condition(
+        model, 
+        collocation, 
+        phi_ic_true, 
+        c_ic_true, 
+        mu_ic_true, 
+        optimizer, 
+        pretrain_epochs: int
+):
+    model.train()
+
+    x_ic, t_ic = collocation["x_ic"], collocation["t_ic"]
+
+    #initiating the pre-train loss history
+    history = {
+        "total": [],
+        "ic_phi": [],
+        "ic_c": [],
+        "ic_mu": []
+    }
+
+    for epoch in range(1, pretrain_epochs + 1):
+        optimizer.zero_grad()
+
+        #calculating the loss, backprop & updating gradients
+        loss_ic, loss_ic_phi, loss_ic_c, loss_ic_mu = ic_loss(model, x_ic, t_ic, phi_ic_true, c_ic_true, mu_ic_true)
+
+        loss_ic.backward()
+        optimizer.step()
+
+        #updating history
+        history["total"].append(loss_ic.item())
+        history["ic_phi"].append(loss_ic_phi.item())
+        history["ic_c"].append(loss_ic_c.item())
+        history["ic_mu"].append(loss_ic_mu.item())
+
+        if epoch % 50 == 0 or epoch == 1:
+            print(
+                f"Pretrain epoch {epoch:05d} | "
+                f"IC phi: {loss_ic_phi.item():.4e} | "
+                f"IC c: {loss_ic_c.item():.4e} | "
+                f"IC mu: {loss_ic_mu.item():.4e} | "
+                f"IC total: {loss_ic.item():.4e}"
+            )
+
+    return history
+    
 
 #function to train the model for a fixed n. of iterations (and return the losses history)
 def train_model(
@@ -100,23 +148,23 @@ def train_model(
         "ic_mu": []
     }
 
-    # if pretrain_epochs > 0:
-    #     #PRE-TRAINING PHASE (just IC training, setting pde loss term weight to 0)
-    #     #-------------------------------------
-    #     print("\n" + "="*40)
-    #     print("FASE 1: PRE-TRAINING CONDIZIONE INIZIALE")
-    #     print("="*40)
+    if pretrain_epochs > 0:
+        #PRE-TRAINING PHASE (just IC training, setting pde loss term weight to 0)
+        #-------------------------------------
+        print("\n" + "="*40)
+        print("FASE 1: PRE-TRAINING CONDIZIONE INIZIALE")
+        print("="*40)
 
-    #     #pre-train the model and save losses history on initial conditions 
-    #     pretrain_losses = pretrain_model(
-    #         model, 
-    #         optimizer, 
-    #         M, 
-    #         epsilon, 
-    #         pretrain_epochs
-    #     )
-    # else:
-    #     pretrain_losses = None
+        #pre-train the model and save losses history on initial conditions 
+        pretrain_history = pretrain_initial_condition(
+            model, 
+            collocation, 
+            phi_ic_true, c_ic_true, mu_ic_true, 
+            optimizer, 
+            pretrain_epochs
+        )
+    else:
+        pretrain_history = None
 
     #TRAINING PHASE (w/ resampling)
     #-------------------------------------
@@ -161,7 +209,7 @@ def train_model(
         train_losses["ic_mu"].append(epoch_losses["ic_mu"])  
 
     # return pretrain_losses, train_losses
-    return train_losses
+    return train_losses, pretrain_history
 
 
 #function to perform the training refinement with l-bfgs algorithm (post-Adam)
@@ -275,6 +323,7 @@ if __name__ == "__main__":
     parser.add_argument("--pde_c_w", type=float, default=2.0, help = "PDE (c) loss term weight")
     parser.add_argument("--pde_mu_w", type=float, default=2.0, help = "PDE (mu) loss term weight")
     parser.add_argument("--epochs", type=int, default=3000, help = "N. of training epochs")
+    parser.add_argument("--pretrain_epochs", type=int, default=1000, help = "N. of pre-training epochs (IC loss only)")
     parser.add_argument("--lbfgs_iter", type=int, default=100, help = "N. of L-BFGS iterations")
     parser.add_argument("--n_pde", type=int, default=10000, help = "N. of PDE collocation points")
     parser.add_argument("--n_bc", type=int, default=2000, help = "N. of BC collocation points")
@@ -312,7 +361,7 @@ if __name__ == "__main__":
 
     start_time = time.time()
     #training the model for n_epochs
-    train_losses = train_model(
+    train_losses, pretrain_history = train_model(
         model, 
         optimizer, 
         M_phi, M_c, 
@@ -323,7 +372,7 @@ if __name__ == "__main__":
         c_ic_true, 
         mu_ic_true,
         n_epochs,
-        pretrain_epochs = 0,
+        pretrain_epochs = args.pretrain_epochs,
         ic_weight = args.ic_weight, 
         bc_weight = args.bc_weight, 
         pde_weight = args.pde_weight,
@@ -374,3 +423,25 @@ if __name__ == "__main__":
 
     plt.savefig(out_dir / args.lossplot_name, dpi=200, bbox_inches="tight")
     plt.close()
+
+    #plot pre-train loss vs pre-train epoch
+    if pretrain_history is not None:
+        out_dir = Path("artifacts/coupled/lossplots/pretrain")
+        out_dir.mkdir(parents=True, exist_ok=True)
+
+        x_pre = np.arange(1, len(pretrain_history["total"]) + 1)
+
+        plt.figure(figsize=(8, 5))
+        plt.semilogy(x_pre, pretrain_history["ic_phi"], label="IC phi")
+        plt.semilogy(x_pre, pretrain_history["ic_c"], label="IC c")
+        plt.semilogy(x_pre, pretrain_history["ic_mu"], label="IC mu")
+        plt.semilogy(x_pre, pretrain_history["total"], label="IC total", linestyle="--")
+
+        plt.xlabel("Pretraining epochs")
+        plt.ylabel("IC loss")
+        plt.title("Coupled AC-CH initial condition pretraining")
+        plt.legend()
+        plt.grid(True, which="both", linestyle="--", alpha=0.5)
+
+        plt.savefig(out_dir / args.lossplot_name, dpi=200, bbox_inches="tight")
+        plt.close()
