@@ -323,7 +323,7 @@ if __name__ == "__main__":
     parser.add_argument("--pde_c_w", type=float, default=2.0, help = "PDE (c) loss term weight")
     parser.add_argument("--pde_mu_w", type=float, default=2.0, help = "PDE (mu) loss term weight")
     parser.add_argument("--epochs", type=int, default=3000, help = "N. of training epochs")
-    parser.add_argument("--pretrain_epochs", type=int, default=1000, help = "N. of pre-training epochs (IC loss only)")
+    parser.add_argument("--pretrain_epochs", type=int, default=0, help = "N. of pre-training epochs (IC loss only)")
     parser.add_argument("--lbfgs_iter", type=int, default=100, help = "N. of L-BFGS iterations")
     parser.add_argument("--n_pde", type=int, default=10000, help = "N. of PDE collocation points")
     parser.add_argument("--n_bc", type=int, default=2000, help = "N. of BC collocation points")
