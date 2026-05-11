@@ -17,9 +17,10 @@ def train_one_epoch(
         eps_phi, eps_c,
         gamma, #coupling parameter 
         epoch,
-        ic_weight: float, #ic loss term weight
-        bc_weight: float, #bc loss term weight 
-        pde_weight: float #pde loss term weight (set to 0 in pre-training phase)
+        ic_weight, #ic loss term weight
+        bc_weight, #bc loss term weight 
+        pde_weight, #pde loss term weight (set to 0 in pre-training phase)
+        pde_phi_w, pde_c_w, pde_mu_w #weights for each separated pde loss term (phi, c, mu residuals)
 ):
     model.train()
 
@@ -35,7 +36,7 @@ def train_one_epoch(
     loss_bc, loss_bc_phi, loss_bc_c, loss_bc_mu = bc_loss(model, x_bc, t_bc)
     loss_ic, loss_ic_phi, loss_ic_c, loss_ic_mu = ic_loss(model, x_ic, t_ic, phi_ic_true, c_ic_true, mu_ic_true)
 
-    loss = pde_weight * loss_pde + bc_weight * loss_bc + ic_weight * loss_ic
+    loss = pde_weight * (pde_phi_w * loss_pde_phi + pde_c_w * loss_pde_c + pde_mu_w * loss_pde_mu) + bc_weight * loss_bc + ic_weight * loss_ic
     loss.backward()
 
     optimizer.step() #updating the gradients
@@ -73,11 +74,14 @@ def train_model(
     phi_ic_true, #true initial non-cons. field profile (phi(x, 0))
     c_ic_true, #true initial concentration profile (c(x, 0))
     mu_ic_true, #true initial potential profile (mu(x, 0))
-    n_epochs: int = 10000,
-    pretrain_epochs: int = 1000,
-    ic_weight: float = 100.0,
-    bc_weight: float = 10.0,
-    pde_weight: float = 1.0 
+    n_epochs: int,
+    pretrain_epochs: int,
+    ic_weight: float, #ic loss term weight
+    bc_weight: float, #bc loss term weight
+    pde_weight: float, #pde loss term weight
+    pde_phi_w: float, # individual pde terms weight (phi, c, mu residuals) 
+    pde_c_w: float,   # ---
+    pde_mu_w: float   # ---
 ):
     #initiate losses history
     train_losses = {
@@ -135,7 +139,10 @@ def train_model(
             epoch,
             ic_weight = ic_weight, 
             bc_weight = bc_weight,
-            pde_weight = pde_weight
+            pde_weight = pde_weight,
+            pde_phi_w = pde_phi_w, 
+            pde_c_w = pde_c_w, 
+            pde_mu_w = pde_mu_w
         ) #train one epoch and calculate losses terms
 
         #update losses history with current values
@@ -261,6 +268,12 @@ if __name__ == "__main__":
     parser.add_argument("--m_phi", type=float, default=1.0, help = "Mobility parameter for phi")
     parser.add_argument("--m_c", type=float, default=0.1, help = "Mobility parameter for c")
     parser.add_argument("--gamma", type=float, default=0.05, help = "Coupling parameter (int = gamma * c * phi)")
+    parser.add_argument("--pde_weight", type=float, default=1.0, help = "PDE loss term weight")
+    parser.add_argument("--bc_weight", type=float, default=10.0, help = "BC loss term weight")
+    parser.add_argument("--ic_weight", type=float, default=100.0, help = "IC loss term weight")
+    parser.add_argument("--pde_phi_w", type=float, default=1.0, help = "PDE (phi) loss term weight")
+    parser.add_argument("--pde_c_w", type=float, default=2.0, help = "PDE (c) loss term weight")
+    parser.add_argument("--pde_mu_w", type=float, default=2.0, help = "PDE (mu) loss term weight")
     parser.add_argument("--epochs", type=int, default=3000, help = "N. of training epochs")
     parser.add_argument("--lbfgs_iter", type=int, default=100, help = "N. of L-BFGS iterations")
     parser.add_argument("--n_pde", type=int, default=10000, help = "N. of PDE collocation points")
@@ -311,9 +324,12 @@ if __name__ == "__main__":
         mu_ic_true,
         n_epochs,
         pretrain_epochs = 0,
-        ic_weight = 100.0, 
-        bc_weight = 10.0, 
-        pde_weight = 1.0
+        ic_weight = args.ic_weight, 
+        bc_weight = args.bc_weight, 
+        pde_weight = args.pde_weight,
+        pde_phi_w = args.pde_phi_w, 
+        pde_c_w = args.pde_c_w, 
+        pde_mu_w = args.pde_mu_w
     )
 
     #refining the training with lbfgs
@@ -327,9 +343,9 @@ if __name__ == "__main__":
         eps_phi=eps_phi, eps_c=eps_c,
         gamma=gamma,
         max_iter=args.lbfgs_iter, 
-        ic_weight=100.0,
-        bc_weight=10.0,
-        pde_weight=1.0,
+        ic_weight=args.ic_weight,
+        bc_weight=args.bc_weight,
+        pde_weight=args.pde_weight,
     )
     print(f"Tempo di esecuzione: {time.time() - start_time:.2f}s")
 
