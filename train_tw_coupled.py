@@ -15,6 +15,7 @@ def parse_args():
     parser.add_argument("--hidden_dim", type=int, default=128, help = "N. of neurons in each hidden layer in ACCH PINN")
     parser.add_argument("--tmax", type=float, default=1.0, help = "End time of the simulation")
     parser.add_argument("--segment_length", type=float, default=0.5, help = "Segment lenght of each model in simple version of time marching (ensemble of networks)")
+    parser.add_argument("--recompute_mu", action="store_true", help = "if called, IC phi for segment 1> is recomputed starting from (c,phi) predictions from previous model")
     parser.add_argument("--l", type=float, default=1.0, help = "Box dimension (lenght in 1d)")
     parser.add_argument("--eps_phi", type=float, default=0.05, help = "Interface penalty term epsilon for phi")
     parser.add_argument("--eps_c", type=float, default=0.05, help = "Interface penalty term epsilon for c")
@@ -201,7 +202,7 @@ if __name__ == "__main__":
             segment_length = args.segment_length, 
             device = device,
             args = args, 
-            recompute_mu = True
+            recompute_mu = args.recompute_mu
         )
 
         
