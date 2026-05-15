@@ -5,6 +5,37 @@ import time
 from losses_coupled import pde_loss, bc_loss, ic_loss
 from utils_coupled import generate_coll_points_and_ic
 
+#function to parse data from CLI
+def parse_args():
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument("--hidden_layers", type=int, default=4, help = "N. of hidden layers in ACCH PINN")
+    parser.add_argument("--hidden_dim", type=int, default=128, help = "N. of neurons in each hidden layer in ACCH PINN")
+    parser.add_argument("--tmax", type=float, default=1.0, help = "End time of the simulation")
+    parser.add_argument("--l", type=float, default=1.0, help = "Box dimension (lenght in 1d)")
+    parser.add_argument("--eps_phi", type=float, default=0.05, help = "Interface penalty term epsilon for phi")
+    parser.add_argument("--eps_c", type=float, default=0.05, help = "Interface penalty term epsilon for c")
+    parser.add_argument("--m_phi", type=float, default=1.0, help = "Mobility parameter for phi")
+    parser.add_argument("--m_c", type=float, default=0.1, help = "Mobility parameter for c")
+    parser.add_argument("--gamma", type=float, default=0.05, help = "Coupling parameter (int = gamma * c * phi)")
+    parser.add_argument("--pde_weight", type=float, default=1.0, help = "PDE loss term weight")
+    parser.add_argument("--bc_weight", type=float, default=10.0, help = "BC loss term weight")
+    parser.add_argument("--ic_weight", type=float, default=100.0, help = "IC loss term weight")
+    parser.add_argument("--pde_phi_w", type=float, default=1.0, help = "PDE (phi) loss term weight")
+    parser.add_argument("--pde_c_w", type=float, default=2.0, help = "PDE (c) loss term weight")
+    parser.add_argument("--pde_mu_w", type=float, default=2.0, help = "PDE (mu) loss term weight")
+    parser.add_argument("--epochs", type=int, default=3000, help = "N. of training epochs")
+    parser.add_argument("--pretrain_epochs", type=int, default=0, help = "N. of pre-training epochs (IC loss only)")
+    parser.add_argument("--lr", type=float, default=1e-3, help = "Adam learning rate")
+    parser.add_argument("--lbfgs_iter", type=int, default=100, help = "N. of L-BFGS iterations")
+    parser.add_argument("--n_pde", type=int, default=10000, help = "N. of PDE collocation points")
+    parser.add_argument("--n_bc", type=int, default=2000, help = "N. of BC collocation points")
+    parser.add_argument("--n_ic", type=int, default=2000, help = "N. of IC collocation points")
+    parser.add_argument("--checkpoint_name", type=str, required=True, help = "Model checkpoint name")
+    parser.add_argument("--lossplot_name", type=str, required=True, help = "Training losses plot name")
+    
+    return parser.parse_args()
+
 #function to train the model for just one iteration 
 def train_one_epoch(
         model, 
@@ -156,7 +187,7 @@ def train_model(
         print("="*40)
 
         #pre-train the model and save losses history on initial conditions 
-        pretrain_history = pretrain_initial_condition(
+        pretrain_losses = pretrain_initial_condition(
             model, 
             collocation, 
             phi_ic_true, c_ic_true, mu_ic_true, 
@@ -164,7 +195,7 @@ def train_model(
             pretrain_epochs
         )
     else:
-        pretrain_history = None
+        pretrain_losses = None
 
     #TRAINING PHASE (w/ resampling)
     #-------------------------------------
@@ -209,7 +240,7 @@ def train_model(
         train_losses["ic_mu"].append(epoch_losses["ic_mu"])  
 
     # return pretrain_losses, train_losses
-    return train_losses, pretrain_history
+    return train_losses, pretrain_losses
 
 
 #function to perform the training refinement with l-bfgs algorithm (post-Adam)
@@ -308,36 +339,14 @@ if __name__ == "__main__":
     from models import CoupledACCHPINN 
 
     #adding CLI parser
-    parser = argparse.ArgumentParser()
-
-    parser.add_argument("--tmax", type=float, default=1.0, help = "End time of the simulation")
-    parser.add_argument("--eps_phi", type=float, default=0.05, help = "Interface penalty term epsilon for phi")
-    parser.add_argument("--eps_c", type=float, default=0.05, help = "Interface penalty term epsilon for c")
-    parser.add_argument("--m_phi", type=float, default=1.0, help = "Mobility parameter for phi")
-    parser.add_argument("--m_c", type=float, default=0.1, help = "Mobility parameter for c")
-    parser.add_argument("--gamma", type=float, default=0.05, help = "Coupling parameter (int = gamma * c * phi)")
-    parser.add_argument("--pde_weight", type=float, default=1.0, help = "PDE loss term weight")
-    parser.add_argument("--bc_weight", type=float, default=10.0, help = "BC loss term weight")
-    parser.add_argument("--ic_weight", type=float, default=100.0, help = "IC loss term weight")
-    parser.add_argument("--pde_phi_w", type=float, default=1.0, help = "PDE (phi) loss term weight")
-    parser.add_argument("--pde_c_w", type=float, default=2.0, help = "PDE (c) loss term weight")
-    parser.add_argument("--pde_mu_w", type=float, default=2.0, help = "PDE (mu) loss term weight")
-    parser.add_argument("--epochs", type=int, default=3000, help = "N. of training epochs")
-    parser.add_argument("--pretrain_epochs", type=int, default=0, help = "N. of pre-training epochs (IC loss only)")
-    parser.add_argument("--lbfgs_iter", type=int, default=100, help = "N. of L-BFGS iterations")
-    parser.add_argument("--n_pde", type=int, default=10000, help = "N. of PDE collocation points")
-    parser.add_argument("--n_bc", type=int, default=2000, help = "N. of BC collocation points")
-    parser.add_argument("--n_ic", type=int, default=2000, help = "N. of IC collocation points")
-    parser.add_argument("--checkpoint_name", type=str, required=True, help = "Model checkpoint name")
-    parser.add_argument("--lossplot_name", type=str, required=True, help = "Training losses plot name")
-    args = parser.parse_args()
+    args = parse_args()
 
     #setting the device
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print("Using device:", device)   
 
     #physical parameters
-    L = 1.0 #box lenght (1D)
+    L = args.l #box lenght (1D)
     T_max = args.tmax #simulation end time
     M_phi = args.m_phi #phi mobility
     M_c = args.m_c #c mobility
@@ -353,8 +362,8 @@ if __name__ == "__main__":
     N_ic = args.n_ic #for initial time
 
     #create model and set Adam optimizer
-    model = CoupledACCHPINN(hidden_layers = 4, hidden_dim = 128).to(device)
-    optimizer = Adam(model.parameters(), lr = 1e-3)
+    model = CoupledACCHPINN(hidden_layers = args.hidden_layers, hidden_dim = args.hidden_dim).to(device)
+    optimizer = Adam(model.parameters(), lr = args.lr)
 
     n_epochs = args.epochs
     collocation, phi_ic_true, c_ic_true, mu_ic_true = generate_coll_points_and_ic(N_pde, N_bc, N_ic, L, T_max, eps_c, gamma, device) #generate training collocation pts
@@ -382,20 +391,21 @@ if __name__ == "__main__":
     )
 
     #refining the training with lbfgs
-    lbfgs_losses = train_lbfgs(
-        model=model,
-        collocation=collocation,
-        phi_ic_true=phi_ic_true,
-        c_ic_true=c_ic_true,
-        mu_ic_true=mu_ic_true,
-        M_phi=M_phi, M_c=M_c,
-        eps_phi=eps_phi, eps_c=eps_c,
-        gamma=gamma,
-        max_iter=args.lbfgs_iter, 
-        ic_weight=args.ic_weight,
-        bc_weight=args.bc_weight,
-        pde_weight=args.pde_weight,
-    )
+    if args.lbfgs_iter > 0:
+        lbfgs_losses = train_lbfgs(
+            model=model,
+            collocation=collocation,
+            phi_ic_true=phi_ic_true,
+            c_ic_true=c_ic_true,
+            mu_ic_true=mu_ic_true,
+            M_phi=M_phi, M_c=M_c,
+            eps_phi=eps_phi, eps_c=eps_c,
+            gamma=gamma,
+            max_iter=args.lbfgs_iter, 
+            ic_weight=args.ic_weight,
+            bc_weight=args.bc_weight,
+            pde_weight=args.pde_weight,
+        )
     print(f"Tempo di esecuzione: {time.time() - start_time:.2f}s")
 
     #save the model weights

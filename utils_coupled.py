@@ -1,4 +1,7 @@
+from pathlib import Path
 import torch
+
+from models import CoupledACCHPINN
 
 #initial condition function for phield phi
 def initial_phi(x):
@@ -40,7 +43,7 @@ def initial_fields(x, eps_c, gamma):
 
 
 #function that generates a dict of all collocation points (pde, bc, ic) randomly generated to train the network
-def generate_coll_points_and_ic(N_pde, N_bc, N_ic, L, T_max, eps_c, gamma, device):
+def generate_coll_points_and_ic(N_pde, N_bc, N_ic, L, T_max, eps_c, gamma, device, ic_fn = None):
     #pde collocation points
     x_pde = torch.rand(size = (N_pde, 1), device = device) * L
     t_pde = torch.rand(size = (N_pde, 1), device = device) * T_max
@@ -65,11 +68,70 @@ def generate_coll_points_and_ic(N_pde, N_bc, N_ic, L, T_max, eps_c, gamma, devic
         "t_ic": t_ic
     }
 
-    #setting the true initial condition
-    phi_ic_true, c_ic_true, mu_ic_true = initial_fields(x_ic, eps_c, gamma)
-    phi_ic_true, c_ic_true, mu_ic_true = phi_ic_true.to(device), c_ic_true.to(device), mu_ic_true.to(device)
+    #setting the true initial condition or the last prediction of the previous segment
+    if ic_fn is None:
+        phi_ic_true, c_ic_true, mu_ic_true = initial_fields(x_ic, eps_c, gamma)
+        phi_ic_true, c_ic_true, mu_ic_true = phi_ic_true.to(device), c_ic_true.to(device), mu_ic_true.to(device)
+
+    else:
+        phi_ic_true, c_ic_true, mu_ic_true = ic_fn(x_ic)
 
     return collocation, phi_ic_true, c_ic_true, mu_ic_true
+
+#function to load the PINN best model
+def load_model(model_checkpoint: str, hidden_layers: int, hidden_dim: int):
+    model = CoupledACCHPINN(hidden_layers = hidden_layers, hidden_dim = hidden_dim)
+    model.load_state_dict(torch.load(model_checkpoint))
+
+    return model
+
+#function to load the PINN models (time-windowing)
+def load_models(check_dir: Path, hidden_layers: int, hidden_dim: int, device):
+    models = []
+
+    for check_path in check_dir.iterdir():
+        #creating model and loading weights
+        model = CoupledACCHPINN(hidden_layers, hidden_dim)
+        model.load_state_dict(torch.load(check_path))
+        model = model.to(device)
+
+        models.append(model)
+
+    return models
+
+
+#function to generate initial condition for intermediate sequence model (using last temporal prediction of previous segment model)
+def make_ic_from_previous_model(previous_model, segment_lenght, device):
+    previous_model.eval() #set in evaluation mode
+
+    #build the function with the specific previous_model
+    def ic_fn(x):
+        x_eval = x.detach().to(device)
+        t_eval = torch.full_like(x_eval, float(segment_lenght), device=device)
+
+        with torch.no_grad():
+            phi_ic_true, c_ic_true, mu_ic_true = previous_model(x_eval, t_eval)
+
+        return phi_ic_true.detach().to(device), c_ic_true.detach().to(device), mu_ic_true.detach().to(device)
+    
+    return ic_fn
+
+#function to infer (phi, c, mu) from the networks ensemble (for time windowing)
+def predict_windowed(models, x, t_global, segment_length, device):
+    #compute the segment to use 
+    segment_idx = int(min(
+        t_global // segment_length, 
+        len(models) - 1
+    ))
+
+    tau = t_global - segment_idx * segment_length #compute local tau
+    t_local = torch.full_like(x, float(tau), device=device)
+
+    model = models[segment_idx]
+    model.eval()
+
+    return model(x, t_local) #phi, c, mu
+
 
 #function to compute total system energy at a given time
 def compute_energy(x, phi, c, phi_x, c_x, eps_phi, eps_c, gamma):
