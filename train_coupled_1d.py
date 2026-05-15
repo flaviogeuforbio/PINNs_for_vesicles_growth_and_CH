@@ -339,7 +339,7 @@ if __name__ == "__main__":
     import numpy as np
     import argparse
 
-    from models import CoupledACCHPINN 
+    from models import CoupledACCHPINN1d 
 
     #adding CLI parser
     args = parse_args()
@@ -365,7 +365,7 @@ if __name__ == "__main__":
     N_ic = args.n_ic #for initial time
 
     #create model and set Adam optimizer
-    model = CoupledACCHPINN(hidden_layers = args.hidden_layers, hidden_dim = args.hidden_dim).to(device)
+    model = CoupledACCHPINN1d(hidden_layers = args.hidden_layers, hidden_dim = args.hidden_dim).to(device)
     optimizer = Adam(model.parameters(), lr = args.lr)
 
     n_epochs = args.epochs

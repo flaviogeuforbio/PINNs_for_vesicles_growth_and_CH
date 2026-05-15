@@ -1,7 +1,7 @@
 import torch 
 
 from utils_coupled_1d import compute_integral, compute_energy, predict_windowed
-from models import CoupledACCHPINN
+from models import CoupledACCHPINN1d
 
 #function to pars data from CLI
 def parse_args():

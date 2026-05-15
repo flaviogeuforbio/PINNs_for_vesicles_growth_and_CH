@@ -3,7 +3,7 @@ import argparse
 import torch 
 from torch.optim import Adam 
 
-from models import CoupledACCHPINN
+from models import CoupledACCHPINN1d
 from train_coupled_1d import parse_args, train_model, train_lbfgs
 from utils_coupled_1d import generate_coll_points_and_ic
 
@@ -51,7 +51,7 @@ def train_one_segment(
     print("=" * 80)
 
     #creating model and optimizer
-    model = CoupledACCHPINN(
+    model = CoupledACCHPINN1d(
         hidden_layers = args.hidden_layers, 
         hidden_dim = args.hidden_dim
     ).to(device)

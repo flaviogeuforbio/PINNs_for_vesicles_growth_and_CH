@@ -1,7 +1,7 @@
 from pathlib import Path
 import torch
 
-from models import CoupledACCHPINN
+from models import CoupledACCHPINN1d
 
 #initial condition function for phield phi
 def initial_phi(x):
@@ -82,7 +82,7 @@ def generate_coll_points_and_ic(N_pde, N_bc, N_ic, L, T_max, eps_c, gamma, devic
 
 #function to load the PINN best model
 def load_model(model_checkpoint: str, hidden_layers: int, hidden_dim: int):
-    model = CoupledACCHPINN(hidden_layers = hidden_layers, hidden_dim = hidden_dim)
+    model = CoupledACCHPINN1d(hidden_layers = hidden_layers, hidden_dim = hidden_dim)
     model.load_state_dict(torch.load(model_checkpoint))
 
     return model
@@ -100,7 +100,7 @@ def load_models(check_dir: Path, hidden_layers: int, hidden_dim: int, device):
     for check_path in check_paths:
         print("  ", check_path.name)
 
-        model = CoupledACCHPINN(hidden_layers, hidden_dim)
+        model = CoupledACCHPINN1d(hidden_layers, hidden_dim)
         model.load_state_dict(torch.load(check_path, map_location=device))
         model = model.to(device)
         model.eval()
