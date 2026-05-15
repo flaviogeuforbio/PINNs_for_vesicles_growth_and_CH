@@ -4,8 +4,8 @@ import torch
 from torch.optim import Adam 
 
 from models import CoupledACCHPINN
-from train_coupled import parse_args, train_model, train_lbfgs
-from utils_coupled import generate_coll_points_and_ic
+from train_coupled_1d import parse_args, train_model, train_lbfgs
+from utils_coupled_1d import generate_coll_points_and_ic
 
 #function to parse data from CLI
 def parse_args():
@@ -123,7 +123,7 @@ if __name__ == "__main__":
     import matplotlib.pyplot as plt
     from pathlib import Path
 
-    from utils_coupled import make_ic_from_previous_model
+    from utils_coupled_1d import make_ic_from_previous_model
 
     #parse data from CLI
     args = parse_args()

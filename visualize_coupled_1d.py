@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 
 from models import CoupledACCHPINN
-from utils_coupled import predict_windowed, load_model, load_models
+from utils_coupled_1d import predict_windowed, load_model, load_models
 
 #function to parse data from CLI
 def parse_args():

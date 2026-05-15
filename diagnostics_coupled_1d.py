@@ -1,6 +1,6 @@
 import torch 
 
-from utils_coupled import compute_integral, compute_energy, predict_windowed
+from utils_coupled_1d import compute_integral, compute_energy, predict_windowed
 from models import CoupledACCHPINN
 
 #function to pars data from CLI
@@ -91,7 +91,7 @@ def evaluate_diagnostics(
 
     return results
 
-
+#time windowing version
 def evaluate_diagnostics_tw(
     models,
     times,
@@ -161,15 +161,11 @@ def evaluate_diagnostics_tw(
     return results
 
 
-
-    
-
-
 if __name__ == "__main__":
     import argparse
     from pathlib import Path
 
-    from utils_coupled import load_model, load_models
+    from utils_coupled_1d import load_model, load_models
 
     args = parse_args()
 

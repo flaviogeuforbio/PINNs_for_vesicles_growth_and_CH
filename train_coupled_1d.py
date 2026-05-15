@@ -2,8 +2,8 @@ from pathlib import Path
 import torch
 import time
 
-from losses_coupled import pde_loss, bc_loss, ic_loss
-from utils_coupled import generate_coll_points_and_ic
+from losses_coupled_1d import pde_loss, bc_loss, ic_loss
+from utils_coupled_1d import generate_coll_points_and_ic
 
 #function to parse data from CLI
 def parse_args():
