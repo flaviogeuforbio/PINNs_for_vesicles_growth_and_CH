@@ -5,11 +5,13 @@ from models import CoupledACCHPINN
 
 #initial condition function for phield phi
 def initial_phi(x):
-    return 0.2 + 0.15 * torch.cos(torch.pi * x)
+    # return 0.2 + 0.15 * torch.cos(torch.pi * x)
+    return 0.2 + 0.12 * torch.cos(torch.pi * x) + 0.04 * torch.cos(2 * torch.pi * x)
 
 #initial condition for concentration phield c
 def initial_c(x):
-    return 0.1 + 0.1 * torch.cos(2.0 * torch.pi * x) #trying this new IC for conserved field!
+    # return 0.1 + 0.1 * torch.cos(2.0 * torch.pi * x) #trying this new IC for conserved field!
+    return 0.1 + 0.08 * torch.cos(2 * torch.pi * x) + 0.03 * torch.cos(4 * torch.pi * x)
 
 #utility to compute second derivatives
 def second_derivative(y, x):
