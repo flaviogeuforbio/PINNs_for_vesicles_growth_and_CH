@@ -109,7 +109,7 @@ def load_models(check_dir: Path, hidden_layers: int, hidden_dim: int, device):
 
 
 #function to generate initial condition for intermediate sequence model (using last temporal prediction of previous segment model)
-def make_ic_from_previous_model(previous_model, segment_length, device):
+def make_ic_from_previous_model(previous_model, segment_length, device, args, recompute_mu: bool = False):
     previous_model.eval() #set in evaluation mode
 
     #build the function with the specific previous_model
@@ -117,8 +117,29 @@ def make_ic_from_previous_model(previous_model, segment_length, device):
         x_eval = x.detach().to(device)
         t_eval = torch.full_like(x_eval, float(segment_length), device=device)
 
-        with torch.no_grad():
-            phi_ic_true, c_ic_true, mu_ic_true = previous_model(x_eval, t_eval)
+        if recompute_mu:
+            x_eval = x_eval.requires_grad_(True)
+            phi_ic_true, c_ic_true, _ = previous_model(x_eval, t_eval) #without torch.no_grad (to compute derivatives)
+
+            c_ic_x = torch.autograd.grad(
+                c_ic_true, 
+                x_eval, 
+                grad_outputs = torch.ones_like(c_ic_true),
+                create_graph = True
+            )[0]
+
+            c_ic_xx = torch.autograd.grad(
+                c_ic_x, 
+                x_eval, 
+                grad_outputs = torch.ones_like(c_ic_x),
+                create_graph = True
+            )[0]
+
+            mu_ic_true = (c_ic_true**3) - c_ic_true - (args.eps_c**2)*c_ic_xx + args.gamma * phi_ic_true
+
+        else:
+            with torch.no_grad():
+                phi_ic_true, c_ic_true, mu_ic_true = previous_model(x_eval, t_eval)
 
         return phi_ic_true.detach().to(device), c_ic_true.detach().to(device), mu_ic_true.detach().to(device)
     

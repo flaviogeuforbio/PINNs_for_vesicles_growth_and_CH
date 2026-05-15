@@ -199,7 +199,9 @@ if __name__ == "__main__":
         ic_fn = make_ic_from_previous_model(
             previous_model = model, 
             segment_length = args.segment_length, 
-            device = device
+            device = device,
+            args = args, 
+            recompute_mu = True
         )
 
         
