@@ -101,13 +101,13 @@ def load_models(check_dir: Path, hidden_layers: int, hidden_dim: int, device):
 
 
 #function to generate initial condition for intermediate sequence model (using last temporal prediction of previous segment model)
-def make_ic_from_previous_model(previous_model, segment_lenght, device):
+def make_ic_from_previous_model(previous_model, segment_length, device):
     previous_model.eval() #set in evaluation mode
 
     #build the function with the specific previous_model
     def ic_fn(x):
         x_eval = x.detach().to(device)
-        t_eval = torch.full_like(x_eval, float(segment_lenght), device=device)
+        t_eval = torch.full_like(x_eval, float(segment_length), device=device)
 
         with torch.no_grad():
             phi_ic_true, c_ic_true, mu_ic_true = previous_model(x_eval, t_eval)
