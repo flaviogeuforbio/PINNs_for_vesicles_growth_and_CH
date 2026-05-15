@@ -107,8 +107,11 @@ def train_one_segment(
             ic_weight=args.ic_weight,
             bc_weight=args.bc_weight,
             pde_weight=args.pde_weight,
+            pde_phi_w=args.pde_phi_w, 
+            pde_c_w=args.pde_c_w, 
+            pde_mu_w=args.pde_mu_w
         )
-    print(f"Tempo di esecuzione: {time.time() - start_time:.2f}s")
+    print(f"Execution time: {time.time() - start_time:.2f}s")
 
     return model, train_losses, pretrain_losses, lbfgs_losses
 
@@ -185,7 +188,7 @@ if __name__ == "__main__":
 
         plt.xlabel("Epochs")
         plt.ylabel("Train loss")
-        plt.title("Coupled AC-CH 1D (t.w.) training losses")
+        plt.title(f"Coupled AC-CH 1D training losses (segment {segment_idx})")
         plt.legend()
         plt.grid(True, which="both", linestyle="--", alpha=0.5)
 

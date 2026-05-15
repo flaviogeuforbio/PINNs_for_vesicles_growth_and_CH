@@ -253,10 +253,13 @@ def train_lbfgs(
     M_phi, M_c,
     eps_phi, eps_c,
     gamma,
-    max_iter=200,
-    ic_weight=100.0,
-    bc_weight=10.0,
-    pde_weight=1.0,
+    max_iter: int,
+    ic_weight: float,
+    bc_weight: float,
+    pde_weight: float,
+    pde_phi_w: float, 
+    pde_c_w: float, 
+    pde_mu_w: float 
 ):
     model.train()
 
@@ -285,14 +288,14 @@ def train_lbfgs(
     def closure():
         optimizer.zero_grad()
 
-        loss_pde, *_ = pde_loss(x_pde, t_pde, model, M_phi, M_c, eps_phi, eps_c, gamma)
+        loss_pde, loss_pde_phi, loss_pde_c, loss_pde_mu = pde_loss(x_pde, t_pde, model, M_phi, M_c, eps_phi, eps_c, gamma)
         loss_bc, *_ = bc_loss(model, x_bc, t_bc)
         loss_ic, *_ = ic_loss(
             model, x_ic, t_ic, phi_ic_true, c_ic_true, mu_ic_true
         )
 
         loss = (
-            pde_weight * loss_pde
+            pde_weight * (pde_phi_w * loss_pde_phi + pde_c_w * loss_pde_c + pde_mu_w * loss_pde_mu)
             + bc_weight * loss_bc
             + ic_weight * loss_ic
         )
@@ -405,6 +408,9 @@ if __name__ == "__main__":
             ic_weight=args.ic_weight,
             bc_weight=args.bc_weight,
             pde_weight=args.pde_weight,
+            pde_phi_w=args.pde_phi_w,
+            pde_c_w=args.pde_c_w,
+            pde_mu_w=args.pde_mu_w
         )
     print(f"Tempo di esecuzione: {time.time() - start_time:.2f}s")
 

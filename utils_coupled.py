@@ -89,11 +89,19 @@ def load_model(model_checkpoint: str, hidden_layers: int, hidden_dim: int):
 def load_models(check_dir: Path, hidden_layers: int, hidden_dim: int, device):
     models = []
 
-    for check_path in check_dir.iterdir():
-        #creating model and loading weights
+    check_paths = sorted(
+        check_dir.glob("segment_*.pt"),
+        key=lambda p: int(p.stem.split("_")[1])
+    )
+
+    print("Loading segment models in order:")
+    for check_path in check_paths:
+        print("  ", check_path.name)
+
         model = CoupledACCHPINN(hidden_layers, hidden_dim)
-        model.load_state_dict(torch.load(check_path))
+        model.load_state_dict(torch.load(check_path, map_location=device))
         model = model.to(device)
+        model.eval()
 
         models.append(model)
 
