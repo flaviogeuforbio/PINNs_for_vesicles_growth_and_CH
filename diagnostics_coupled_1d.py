@@ -10,6 +10,7 @@ def parse_args():
     parser.add_argument("--run_name", type=str, required=True, help = "Name of the current run (specify parameters/hyperparameters, e.g. gamma005_tmax1_epochs2000)")
     parser.add_argument("--tmax", type=float, default=1.0, help = "End time of the simulation")
     parser.add_argument("--segment_length", type=float, default=0.5, help = "Time segment dimension of each network in the ensemble (time windowing)")
+    parser.add_argument("--l", type=float, default=1.0, help = "Box dimension (lenght in 1d)")
     parser.add_argument("--eps_phi", type=float, default=0.05, help = "Interface penalty term epsilon for phi")
     parser.add_argument("--eps_c", type=float, default=0.05, help = "Interface penalty term epsilon for c")
     parser.add_argument("--gamma", type=float, default=0.05, help = "Coupling parameter (int = gamma * phi * c)")
@@ -173,7 +174,7 @@ if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print("Using device:", device)  
 
-    L = 1.0 #box dimension
+    L = args.l #box dimension
 
     check_dir = Path("artifacts/coupled_tw") / args.run_name / "weights"
     check_dir.mkdir(parents=True, exist_ok=True)

@@ -102,7 +102,7 @@ def generate_coll_points_and_ic(N_pde, N_bc, N_ic, L_x, L_y, T_max, eps_c, gamma
         "t_bc": t_bc,
         "normal_bc": normal_bc,
         "x_ic": x_ic, 
-        "y_bc": y_bc,
+        "y_ic": y_bc,
         "t_ic": t_ic
     }
 
@@ -123,3 +123,35 @@ def load_model(model_checkpoint: str, hidden_layers: int, hidden_dim: int):
     model.load_state_dict(torch.load(model_checkpoint))
 
     return model
+
+#function to calculate 2d integrals (over a discrete 2-dimensional grid)
+def integral_2d(field, x_lin, y_lin, n_grid):
+    #we want to reshape the field, because the model outputs a vector with shape (n_grid*n_grid, 1) for each field phi, c, mu
+    field = field.reshape(n_grid, n_grid)
+
+    int_y = torch.trapz(field, y_lin, dim = 1) #integrating over y first (with trapezoidal method)
+    int_xy = torch.trapz(int_y, x_lin, dim = 0)
+
+    return int_xy
+
+
+#function to compute total energy of the system 
+def compute_energy(
+    phi, c, 
+    phi_x, phi_y, 
+    c_x, c_y, 
+    x_lin, y_lin, 
+    n_grid, 
+    eps_phi, eps_c, 
+    gamma
+):
+    
+    density = (
+        0.5 * eps_phi**2 * (phi_x**2 + phi_y**2) 
+        + 0.25 * (phi**2 - 1.0) ** 2
+        + 0.5 * eps_c**2 * (c_x**2 + c_y**2)
+        + 0.25 * (c**2 - 1.0) ** 2
+        + gamma * c * phi
+    )
+
+    return integral_2d(density, x_lin, y_lin, n_grid)
