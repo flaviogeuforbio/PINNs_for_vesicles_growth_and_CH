@@ -102,7 +102,7 @@ def generate_coll_points_and_ic(N_pde, N_bc, N_ic, L_x, L_y, T_max, eps_c, gamma
         "t_bc": t_bc,
         "normal_bc": normal_bc,
         "x_ic": x_ic, 
-        "y_ic": y_bc,
+        "y_ic": y_ic,
         "t_ic": t_ic
     }
 
