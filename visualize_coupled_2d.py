@@ -41,7 +41,7 @@ def compute_pts_to_visualize(
         model_checkpoint, 
         hidden_layers, 
         hidden_dim
-    )
+    ).to(device)
     model.eval()
 
     #creating the grid 
