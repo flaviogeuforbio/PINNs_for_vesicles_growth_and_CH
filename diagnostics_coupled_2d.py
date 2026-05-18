@@ -1,16 +1,15 @@
 import torch 
 
-from utils_coupled_2d import grad, integral_2d, compute_energy
-from models import CoupledACCHPINN2d
+from utils_coupled_2d import grad, integral_2d, compute_energy, predict_windowed
 
 #function to pars data from CLI
 def parse_args():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("--run_name", type=str, required=False, help = "Name of the current run (specify parameters/hyperparameters, e.g. gamma005_tmax1_epochs2000)")
-    parser.add_argument("--checkpoint_name", type=str, required=True, help = "Model checkpoint name")
+    parser.add_argument("--run_name", type=str, required=True, help = "Name of the current run (specify parameters/hyperparameters, e.g. gamma005_tmax1_epochs2000)")
+    parser.add_argument("--checkpoint_name", type=str, required=False, help = "Model checkpoint name")
     parser.add_argument("--tmax", type=float, default=1.0, help = "End time of the simulation")
-    # parser.add_argument("--segment_length", type=float, default=0.5, help = "Time segment dimension of each network in the ensemble (time windowing)")
+    parser.add_argument("--segment_length", type=float, default=0.5, help = "Time segment dimension of each network in the ensemble (time windowing)")
     parser.add_argument("--lx", type=float, default=1.0, help = "Box length on x direction")
     parser.add_argument("--ly", type=float, default=1.0, help = "Box length on y direction")
     parser.add_argument("--eps_phi", type=float, default=0.05, help = "Interface penalty term epsilon for phi")
@@ -100,12 +99,86 @@ def evaluate_diagnostics(
 
     return results
 
+#time windowing version
+def evaluate_diagnostics_tw(
+    models,
+    times,
+    L_x, L_y,
+    segment_length,
+    eps_phi,
+    eps_c,
+    gamma,
+    n_grid,
+    device="cpu",
+):
+
+    results = {
+        "times": [],
+        "energy": [],
+        "mass_c": [],
+        "mean_phi": [],
+        "phi_min": [],
+        "phi_max": [],
+        "c_min": [],
+        "c_max": [],
+    }
+
+    x_lin = torch.linspace(0.0, L_x, n_grid, device=device)
+    y_lin = torch.linspace(0.0, L_y, n_grid, device=device)
+
+    #creating the discrete 2-dimensional grid
+    X, Y = torch.meshgrid(x_lin, y_lin, indexing = "ij")
+
+    x_flat = X.reshape(-1, 1)
+    y_flat = Y.reshape(-1, 1)
+
+    for time_value in times:
+        x = x_flat.clone().detach().requires_grad_(True)
+        y = y_flat.clone().detach().requires_grad_(True)
+
+        phi, c, _ = predict_windowed(models, x, y, float(time_value), segment_length, device)
+
+        phi_x = grad(phi, x)
+        phi_y = grad(phi, y)
+
+        c_x = grad(c, x)
+        c_y = grad(c, y)
+
+        energy = compute_energy(
+            phi = phi, 
+            c = c, 
+            phi_x = phi_x, 
+            phi_y = phi_y, 
+            c_x = c_x, 
+            c_y = c_y, 
+            x_lin = x_lin, 
+            y_lin = y_lin, 
+            n_grid = n_grid, 
+            eps_phi = eps_phi, 
+            eps_c = eps_c, 
+            gamma = gamma
+        )
+
+        mass_c = integral_2d(c, x_lin, y_lin, n_grid) #this function requires meshgrid with indexing ij!!
+        mean_phi = integral_2d(phi, x_lin, y_lin, n_grid)
+
+        results["times"].append(float(time_value))
+        results["energy"].append(float(energy.detach().cpu()))
+        results["mass_c"].append(float(mass_c.detach().cpu()))
+        results["mean_phi"].append(float(mean_phi.detach().cpu()))
+        results["phi_min"].append(float(phi.min().detach().cpu()))
+        results["phi_max"].append(float(phi.max().detach().cpu()))
+        results["c_min"].append(float(c.min().detach().cpu()))
+        results["c_max"].append(float(c.max().detach().cpu()))
+
+    return results
+
 
 if __name__ == "__main__":
     import argparse
     from pathlib import Path
 
-    from utils_coupled_2d import load_model
+    from utils_coupled_2d import load_model, load_models
 
     args = parse_args()
 
@@ -113,22 +186,24 @@ if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print("Using device:", device)  
 
-    check_dir = Path("artifacts/baseline/weights")
+    check_dir = Path("artifacts/timewindowing") / args.run_name / "weights"
     check_dir.mkdir(parents=True, exist_ok=True)
 
-    model = load_model(
-        model_checkpoint = check_dir / args.checkpoint_name,
+    #loading segment models
+    models = load_models(
+        check_dir = check_dir, 
         hidden_layers = args.hidden_layers, 
-        hidden_dim = args.hidden_dim
+        hidden_dim = args.hidden_dim, 
+        device = device
     )
-    model = model.to(device)
     
     diagnostics_times = torch.linspace(0.0, args.tmax, 11)
 
-    diagnostics = evaluate_diagnostics(
-        model = model, 
+    diagnostics = evaluate_diagnostics_tw(
+        models = models, 
         times = diagnostics_times, 
-        L_x = args.lx, L_y = args.ly, 
+        L_x = args.lx, L_y = args.ly,  
+        segment_length = args.segment_length,
         eps_phi = args.eps_phi,
         eps_c = args.eps_c, 
         gamma = args.gamma, 

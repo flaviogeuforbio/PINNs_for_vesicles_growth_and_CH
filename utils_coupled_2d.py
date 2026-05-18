@@ -1,4 +1,5 @@
 import torch 
+from pathlib import Path
 
 from models import CoupledACCHPINN2d
 
@@ -124,6 +125,28 @@ def load_model(model_checkpoint: str, hidden_layers: int, hidden_dim: int):
 
     return model
 
+#function to load the PINN models (time-windowing)
+def load_models(check_dir: Path, hidden_layers: int, hidden_dim: int, device):
+    models = []
+
+    check_paths = sorted(
+        check_dir.glob("segment_*.pt"),
+        key=lambda p: int(p.stem.split("_")[1])
+    )
+
+    print("Loading segment models in order:")
+    for check_path in check_paths:
+        print("  ", check_path.name)
+
+        model = CoupledACCHPINN2d(hidden_layers, hidden_dim)
+        model.load_state_dict(torch.load(check_path, map_location=device))
+        model = model.to(device)
+        model.eval()
+
+        models.append(model)
+
+    return models
+
 #function to calculate 2d integrals (over a discrete 2-dimensional grid)
 def integral_2d(field, x_lin, y_lin, n_grid):
     #we want to reshape the field, because the model outputs a vector with shape (n_grid*n_grid, 1) for each field phi, c, mu
@@ -155,3 +178,47 @@ def compute_energy(
     )
 
     return integral_2d(density, x_lin, y_lin, n_grid)
+
+
+#function to generate initial condition for intermediate sequence model (using last temporal prediction of previous segment model)
+def make_ic_from_previous_model(previous_model, segment_length, device, args, recompute_mu: bool = False):
+    previous_model.eval() #set in evaluation mode
+
+    #build the function with the specific previous_model
+    def ic_fn(x, y):
+        x_eval = x.detach().to(device)
+        y_eval = y.detach().to(device)
+        t_eval = torch.full_like(x_eval, float(segment_length), device=device)
+
+        if recompute_mu:
+            x_eval = x_eval.requires_grad_(True)
+            y_eval = y_eval.requires_grad_(True)
+            phi_ic_true, c_ic_true, _ = previous_model(x_eval, y_eval, t_eval) #without torch.no_grad (to compute derivatives)
+
+            lap_c_ic = laplacian(c_ic_true, x_eval, y_eval)
+
+            mu_ic_true = (c_ic_true**3) - c_ic_true - (args.eps_c**2)*lap_c_ic + args.gamma * phi_ic_true
+
+        else:
+            with torch.no_grad():
+                phi_ic_true, c_ic_true, mu_ic_true = previous_model(x_eval, y_eval, t_eval)
+
+        return phi_ic_true.detach().to(device), c_ic_true.detach().to(device), mu_ic_true.detach().to(device)
+    
+    return ic_fn
+
+#function to infer (phi, c, mu) from the networks ensemble (for time windowing)
+def predict_windowed(models, x, y, t_global, segment_length, device):
+    #compute the segment to use 
+    segment_idx = int(min(
+        t_global // segment_length, 
+        len(models) - 1
+    ))
+
+    tau = t_global - segment_idx * segment_length #compute local tau
+    t_local = torch.full_like(x, float(tau), device=device)
+
+    model = models[segment_idx]
+    model.eval()
+
+    return model(x, y, t_local) #phi, c, mu
