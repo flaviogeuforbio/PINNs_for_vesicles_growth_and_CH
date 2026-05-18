@@ -443,7 +443,7 @@ if __name__ == "__main__":
 
     plt.xlabel("Epochs")
     plt.ylabel("Train loss")
-    plt.title("Coupled AC-CH 1D training losses")
+    plt.title("Coupled AC-CH 2D training losses")
     plt.legend()
     plt.grid(True, which="both", linestyle="--", alpha=0.5)
 
