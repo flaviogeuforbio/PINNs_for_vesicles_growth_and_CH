@@ -119,7 +119,7 @@ def create_animation_2d(
     ax_phi.set_xlabel("x")
     ax_phi.set_ylabel("y")
 
-    ax_psi.set_title(r"Cahn-Hilliard field $\psi(x,y,t)$")
+    ax_psi.set_title(r"Ionic concentration field $\psi(x,y,t)$")
     ax_psi.set_xlabel("x")
     ax_psi.set_ylabel("y")
 
