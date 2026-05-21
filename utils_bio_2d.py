@@ -169,7 +169,7 @@ def initial_fields(x, y, args):
 
     #initial phi, initial psi
     phi_0 = initial_phi(x_clone, y_clone, args.eps)
-    psi_0 = initial_psi(phi_0, args.phi_in_0, args.phi_out_0)
+    psi_0 = initial_psi(phi_0, args.psi_in_0, args.psi_out_0)
 
     #computing useful quantities and derivatives for initial mu, initial nu
     lap_phi = laplacian(
