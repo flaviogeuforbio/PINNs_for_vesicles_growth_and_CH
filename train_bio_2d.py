@@ -1,5 +1,6 @@
 import torch 
 import argparse
+import json
 
 from trainer_bio_2d import train_one_segment 
 
@@ -46,6 +47,16 @@ def parse_args():
     parser.add_argument("--run_name", type=str, required=True, help = "Name of the current run (specify parameters/hyperparameters, e.g. gamma005_tmax1_epochs2000)")
     
     return parser.parse_args()
+
+#function to save all CLI arguments used for the current run
+def save_run_config(args, run_dir):
+    config_path = run_dir / "run_config.json"
+    config = vars(args).copy()
+
+    with open(config_path, "w") as f:
+        json.dump(config, f, indent=4)
+
+    print(f"Run configuration saved to: {config_path}")
 
 if __name__ == "__main__":
     import math
@@ -135,3 +146,6 @@ if __name__ == "__main__":
             args = args, 
             recompute_potentials = args.recompute_pot
         )
+
+    #save run configuration 
+    save_run_config(args, out_dir)
