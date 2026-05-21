@@ -83,8 +83,8 @@ def evaluate_diagnostics_tw(
             args = args
         )
 
-        # mass_psi = integral_2d(psi, x_lin, y_lin, n_grid) 
-        mean_phi = integral_2d(phi, x_lin, y_lin, n_grid) #this function requires meshgrid with indexing ij!!
+        mass_psi = integral_2d(psi, x_lin, y_lin, n_grid) #this function requires meshgrid with indexing ij!!
+        # mean_phi = integral_2d(phi, x_lin, y_lin, n_grid) 
 
         #using the interpolating function p(phi) to compute a more authentic estimation of the vesicle internal volume (surface in 2d)
         chi_in = 0.5 * (1 + p_interp(phi))
@@ -95,7 +95,7 @@ def evaluate_diagnostics_tw(
         results["surf_energy"].append(float(surf_energy.detach().cpu()))
         results["osm_energy"].append(float(osm_energy.detach().cpu()))
         results["V_in"].append(float(V_in.detach().cpu()))
-        results["mean_phi"].append(float(mean_phi.detach().cpu()))
+        results["mass_psi"].append(float(mass_psi.detach().cpu()))
         results["phi_min"].append(float(phi.min().detach().cpu()))
         results["phi_max"].append(float(phi.max().detach().cpu()))
         results["psi_min"].append(float(psi.min().detach().cpu()))
