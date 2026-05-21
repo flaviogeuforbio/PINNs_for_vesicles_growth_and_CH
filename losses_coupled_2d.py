@@ -1,7 +1,7 @@
 import torch 
 from utils_coupled_2d import grad, laplacian
 
-#governing equation term of the total loss (1D AC + CH + interaction term gamma*c*phi)
+#governing equation term of the total loss (2D AC + CH + interaction term gamma*c*phi)
 def pde_loss(
         x, y, t, 
         model, 
