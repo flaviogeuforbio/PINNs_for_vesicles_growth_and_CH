@@ -7,7 +7,6 @@ def parse_args():
     parser = argparse.ArgumentParser()
 
     parser.add_argument("--run_name", type=str, required=True, help = "Name of the current run (specify parameters/hyperparameters, e.g. gamma005_tmax1_epochs2000)")
-    parser.add_argument("--checkpoint_name", type=str, required=False, help = "Model checkpoint name")
     parser.add_argument("--tmax", type=float, default=1.0, help = "End time of the simulation")
     parser.add_argument("--segment_length", type=float, default=0.5, help = "Time segment dimension of each network in the ensemble (time windowing)")
     parser.add_argument("--lx", type=float, default=1.0, help = "Box length on x direction")
@@ -15,13 +14,13 @@ def parse_args():
     
     #--free energy parameters
     parser.add_argument("--eps", type=float, default=0.05, help = "Interface penalty parameter (for phi field)")
-    parser.add_argument("--lambda_surf", type=float, default=1.0, help = "Surface free energy density constant factor")
-    parser.add_argument("--lambda_in", type=float, default=1.0, help = "constant factor for free energy inside the vesicle (psi)")
-    parser.add_argument("--lambda_out", type=float, default=1.0, help = "constant factor for free energy outside the vesicle (psi)")
-    parser.add_argument("--beta_in", type=float, default=0.0)
-    parser.add_argument("--beta_out", type=float, default=0.0)
-    parser.add_argument("--psi_in_eq", type=float, default=1.0)
-    parser.add_argument("--psi_out_eq", type=float, default=0.0)
+    parser.add_argument("--lambda_surf", type=float, default=1.0, help = "Surface free energy weight")
+    parser.add_argument("--lambda_in", type=float, default=1.0, help = "Constant factor in formula for phi free energy inside the vesicle")
+    parser.add_argument("--lambda_out", type=float, default=1.0, help = "Constant factor in formula for phi free energy outside the vesicle")
+    parser.add_argument("--beta_in", type=float, default=0.0, help = "Additive constant in formula for phi free energy inside the vesicle")
+    parser.add_argument("--beta_out", type=float, default=0.0, help = "Additive constant in formula for phi free energy outside the vesicle")
+    parser.add_argument("--psi_in_eq", type=float, default=1.0, help = "Equilibrium value for psi inside the vesicle")
+    parser.add_argument("--psi_out_eq", type=float, default=0.0, help = "Equilibrium value for psi outside the vesicle")
 
     parser.add_argument("--hidden_layers", type=int, default=4, help = "N. of PINN hidden layers")
     parser.add_argument("--hidden_dim", type=int, default=128, help = "N. of neurons for each PINN hidden layers")
@@ -109,7 +108,7 @@ if __name__ == "__main__":
     import argparse
     from pathlib import Path
 
-    from utils_bio_2d import load_model, load_models
+    from utils_bio_2d import load_models
 
     args = parse_args()
 
@@ -117,7 +116,7 @@ if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print("Using device:", device)  
 
-    check_dir = Path("artifacts/timewindowing") / args.run_name / "weights"
+    check_dir = Path("artifacts/bio-minimal") / args.run_name / "weights"
     check_dir.mkdir(parents=True, exist_ok=True)
 
     #loading segment models

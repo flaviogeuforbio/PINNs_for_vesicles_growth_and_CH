@@ -4,24 +4,23 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 
-from utils_bio_2d import load_model, load_models, predict_windowed
+from utils_bio_2d import load_models, predict_windowed
 
 #function to parse data from CLI
 def parse_args():
     parser = argparse.ArgumentParser()
 
     parser.add_argument("--run_name", type=str, required = True, help = "Name of the current run (specify parameters/hyperparameters, e.g. gamma005_tmax1_epochs2000)")
-    parser.add_argument("--checkpoint_name", type=str, required=False, help = "Model checkpoint name")
     parser.add_argument("--tmax", type=float, default=1.0, help = "End time of the simulation")
     parser.add_argument("--segment_length", type=float, default=0.5, help = "Time segment dimension of each network in the ensemble (time windowing)")
     parser.add_argument("--lx", type=float, default=1.0, help = "Box length on x direction")
     parser.add_argument("--ly", type=float, default=1.0, help = "Box length on y direction")
-    parser.add_argument("--gif_name", type=str, default="ACCH_2d_gif.gif", help = "File name of output gif")
+    parser.add_argument("--gif_name", type=str, default="bio_ACCH_2d.gif", help = "File name of output gif")
     parser.add_argument("--hidden_layers", type=int, default=4, help = "N. of PINN hidden layers")
     parser.add_argument("--hidden_dim", type=int, default=128, help = "N. of neurons for each PINN hidden layers")
-    parser.add_argument("--n_x_plot", type=int, default=128)
-    parser.add_argument("--n_y_plot", type=int, default=128)
-    parser.add_argument("--n_t_plot", type=int, default=80)
+    parser.add_argument("--n_x_plot", type=int, default=128, help = "N. of x points in discrete grid used to compute data to visualize")
+    parser.add_argument("--n_y_plot", type=int, default=128, help = "N. of y points in discrete grid used to compute data to visualize")
+    parser.add_argument("--n_t_plot", type=int, default=80, help = "N. of t point in discrete grid used to compute data to visualize")
 
     args = parser.parse_args()
 
@@ -167,7 +166,7 @@ if __name__ == "__main__":
     print("Using device:", device)
 
     #compute all phi, psi points on the 2d discrete grid (for each time-step)
-    check_dir = Path("artifacts/timewindowing") / args.run_name / "weights"
+    check_dir = Path("artifacts/bio-minimal") / args.run_name / "weights"
 
     if not check_dir.exists():
         raise FileNotFoundError(f"Checkpoint directory not found: {check_dir}")
@@ -185,7 +184,7 @@ if __name__ == "__main__":
         N_t_plot = args.n_t_plot
     )
 
-    save_dir = Path("artifacts/timewindowing") / args.run_name / "animations"
+    save_dir = Path("artifacts/bio-minimal") / args.run_name / "animations"
     save_dir.mkdir(parents=True, exist_ok=True)
 
     save_path = save_dir / args.gif_name
