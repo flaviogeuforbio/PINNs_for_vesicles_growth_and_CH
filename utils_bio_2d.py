@@ -132,6 +132,8 @@ def compute_energy(
     surf_energy = integral_2d(surf_density, x_lin, y_lin, n_grid)
     osm_energy = integral_2d(osm_density, x_lin, y_lin, n_grid)
 
+    total_energy = surf_energy + osm_energy
+
     area_energy = None
     if area_target is not None and hasattr(args, "lambda_area"):
 
