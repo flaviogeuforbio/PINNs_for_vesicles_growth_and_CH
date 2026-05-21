@@ -51,3 +51,16 @@ class BioACCHPINN2d(nn.Module):
         layers.append(nn.Linear(hidden_dim, 4))
 
         self.net = nn.Sequential(*layers)
+
+    def forward(self, x, y, t):
+        #packing the input
+        inputs = torch.cat([x, y, t], dim = 1)
+        
+        #forward propagating the inputs and extracting phi, mu, psi, nu output predictions
+        outputs = self.net(inputs)
+        phi = outputs[:, 0:1] #[N, 1]
+        mu = outputs[:, 1:2] #[N, 1]
+        psi = outputs[:, 2:3] #[N, 1]
+        nu = outputs[:, 3:4] #[N, 1]
+
+        return phi, mu, psi, nu
