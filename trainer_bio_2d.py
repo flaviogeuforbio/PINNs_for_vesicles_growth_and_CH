@@ -1,7 +1,6 @@
 import time
 import torch 
 from torch.optim import Adam
-from pathlib import Path
 
 from models import BioACCHPINN2d
 from losses_bio_2d import pde_loss, bc_loss, ic_loss
