@@ -205,7 +205,7 @@ def initial_fields(x, y, args):
 #function that generates a dict of all collocation points (pde, bc, ic) randomly generated to train the network
 def generate_coll_points_and_ic(args, device, ic_fn = None):
     N_pde, N_bc, N_ic = args.n_pde, args.n_bc, args.n_ic
-    T_max = args.tmax
+    T_max = args.segment_length
     L_x, L_y = args.lx, args.ly
 
     #pde collocation points
