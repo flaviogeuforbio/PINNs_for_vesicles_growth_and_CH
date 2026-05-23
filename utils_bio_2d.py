@@ -317,7 +317,7 @@ def adaptive_resample_pde_points(
         + 0.25 * torch.abs(res_phi)
         + 0.25 * torch.abs(res_nu)
     )
-    score.detach().flatten() #1d tensor out of any comp. graph
+    score = score.detach().flatten() #1d tensor out of any comp. graph
 
     #select highest-score points 
     topk_idx = torch.topk(score, k = n_adapt, largest = True).indices
