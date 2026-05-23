@@ -306,7 +306,8 @@ def adaptive_resample_pde_points(
         phi, 
         psi, 
         mu,
-        nu
+        nu,
+        args
     )
 
     #compute the residual score to detect the 'hardest' regions for the net
