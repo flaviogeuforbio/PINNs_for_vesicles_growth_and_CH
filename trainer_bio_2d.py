@@ -188,16 +188,16 @@ def train_model(
     print("ADAM TRAINING")
     print("="*40)
 
-    adaptive_done = False
+    resamp_counter = 0
 
     for epoch in range(1, n_epochs + 1):
 
         if (
             args.adaptive_sampling 
-            and (not adaptive_done)
-            and epoch == args.adap_warmup_epochs
+            and (epoch % args.adap_warmup_epochs == 0)
         ):
-            print(f"\nAdaptive resampling at epoch {epoch}...")
+            resamp_counter += 1
+            print(f"\nAdaptive resampling {resamp_counter} at epoch {epoch}...")
 
             #generate new collocation points (adaptive + uniform)
             x_pde_new, y_pde_new, t_pde_new = adaptive_resample_pde_points(
@@ -210,8 +210,6 @@ def train_model(
             collocation["x_pde"] = x_pde_new
             collocation["y_pde"] = y_pde_new
             collocation["t_pde"] = t_pde_new
-
-            adaptive_done = True
 
         epoch_losses = train_one_epoch(
             model, 
