@@ -3,7 +3,6 @@ from pathlib import Path
 import math
 
 from models import BioACCHPINN2d
-from losses_bio_2d import pde_residuals
 
 k = 3 * math.sqrt(2) / 4 #paper constant
 
