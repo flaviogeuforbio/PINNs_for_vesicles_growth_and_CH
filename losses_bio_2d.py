@@ -23,7 +23,8 @@ def pde_loss(
         phi, 
         psi, 
         mu, 
-        nu
+        nu,
+        args
     )
 
     loss_pde_phi = torch.mean(res_phi ** 2)
