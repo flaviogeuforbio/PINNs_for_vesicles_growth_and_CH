@@ -1,47 +1,9 @@
 import torch 
 import math
 
-from utils_bio_2d import grad, laplacian, f_in, f_out, g_der, p_interp, p_interp_der
+from utils_bio_2d import grad, laplacian, f_in, f_out, g_der, p_interp, p_interp_der, pde_residuals
 
 k = 3 * math.sqrt(2) / 4 #paper constant
-
-#helper to compute pde residuals
-def pde_residuals(
-        x, y, t,
-        phi, 
-        psi, 
-        mu, 
-        nu,
-        args
-):
-    #computing derivatives and useful quantities
-    phi_t = grad(phi, t)
-    psi_t = grad(psi, t)
-
-    nu_x = grad(nu, x)
-    nu_y = grad(nu, y)
-
-    lap_phi = laplacian(phi, x, y)
- 
-    #p(phi), g(phi) and derivatives
-    p_phi = p_interp(phi)
-    p_phi_der = p_interp_der(phi)
-    g_phi_der = g_der(phi)
-
-    f_in_values, f_out_values = f_in(psi, args.psi_in_eq, args.lambda_in, args.beta_in), f_out(phi, args.psi_out_eq, args.lambda_out, args.beta_out) #f_in(psi), f_out(psi)
-    m_psi = 1 - args.m0 * ((phi**2 - 1) ** 2) #psi mobility (depends on phi)
-
-    #psi current
-    psi_curr_x = - m_psi * nu_x
-    psi_curr_y = - m_psi * nu_y
-
-    #residuals
-    res_phi = phi_t + args.m_phi * mu
-    res_mu = mu - (args.lambda_surf * k * ((1.0 / args.eps) * g_phi_der - args.eps * lap_phi) + (1.0/2.0) * p_phi_der * (f_in_values - f_out_values))
-    res_psi = psi_t + grad(psi_curr_x, x) + grad(psi_curr_y, y)
-    res_nu = nu - ((1 + p_phi)/2.0 * args.lambda_in * (psi - args.psi_in_eq) + (1 - p_phi)/2.0 * args.lambda_out * (psi - args.psi_out_eq))
-    
-    return res_phi, res_mu, res_psi, res_nu
 
 #governing equation term of the total loss (2D AC + CH + interaction term gamma*c*phi)
 def pde_loss(
