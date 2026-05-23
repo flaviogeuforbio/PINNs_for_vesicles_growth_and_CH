@@ -60,10 +60,7 @@ class BioACCHPINN2d(nn.Module):
         outputs = self.net(inputs)
         phi = outputs[:, 0:1] #[N, 1]
         mu = outputs[:, 1:2] #[N, 1]
-
-        raw_psi = outputs[:, 2:3] #[N, 1]
-        psi = torch.sigmoid(raw_psi) #to make sure the concentration psi has values in [0, 1] (for simplicity)
-
+        psi = outputs[:, 2:3] #[N, 1]
         nu = outputs[:, 3:4] #[N, 1]
 
         return phi, mu, psi, nu
