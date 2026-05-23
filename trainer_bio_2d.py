@@ -188,16 +188,13 @@ def train_model(
     print("ADAM TRAINING")
     print("="*40)
 
-    resamp_counter = 0
-
     for epoch in range(1, n_epochs + 1):
 
         if (
             args.adaptive_sampling 
-            and (epoch % args.adap_warmup_epochs == 0)
+            and (epoch == args.adap_warmup_epochs)
         ):
-            resamp_counter += 1
-            print(f"\nAdaptive resampling {resamp_counter} at epoch {epoch}...")
+            print(f"\nAdaptive resampling at epoch {epoch}...")
 
             #generate new collocation points (adaptive + uniform)
             x_pde_new, y_pde_new, t_pde_new = adaptive_resample_pde_points(
