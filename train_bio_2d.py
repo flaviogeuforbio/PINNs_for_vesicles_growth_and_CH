@@ -44,6 +44,10 @@ def parse_args():
     parser.add_argument("--n_pde", type=int, default=10000, help = "N. of PDE collocation points")
     parser.add_argument("--n_bc", type=int, default=2000, help = "N. of BC collocation points")
     parser.add_argument("--n_ic", type=int, default=2000, help = "N. of IC collocation points")
+    parser.add_argument("--adaptive_sampling", action="store_true", help = "if True, two-stage adaptive resampling of collocation points is activated")
+    parser.add_argument("--adap_warmup_epochs", type=int, default=500, help = "N. of pre-adaptation epochs in training before performing adaptive resampling of coll. points")
+    parser.add_argument("--n_candidates_resamp", type=int, default=30000, help = "N. of candidate points generated in adaptive resampling phase")
+    parser.add_argument("--adaptive_frac", type=float, default=0.7, help = "Fraction of adaptive resampled points in total resampled points (adaptive + uniform)")
     parser.add_argument("--run_name", type=str, required=True, help = "Name of the current run (specify parameters/hyperparameters, e.g. gamma005_tmax1_epochs2000)")
     
     return parser.parse_args()

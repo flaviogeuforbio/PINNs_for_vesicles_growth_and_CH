@@ -5,19 +5,16 @@ from utils_bio_2d import grad, laplacian, f_in, f_out, g_der, p_interp, p_interp
 
 k = 3 * math.sqrt(2) / 4 #paper constant
 
-#governing equation term of the total loss (2D AC + CH + interaction term gamma*c*phi)
-def pde_loss(
-        x, y, t, 
-        model, 
+#helper to compute pde residuals
+def pde_residuals(
+        x, y, t,
+        phi, 
+        psi, 
+        mu, 
+        nu,
         args
 ):
-    x.requires_grad_(True)
-    y.requires_grad_(True)
-    t.requires_grad_(True)
-
-    phi, mu, psi, nu = model(x, y, t) #model predictions of the fields
-
-    #COMPUTING DERIVATIVES AND USEFUL QUANTITIES
+    #computing derivatives and useful quantities
     phi_t = grad(phi, t)
     psi_t = grad(psi, t)
 
@@ -35,14 +32,37 @@ def pde_loss(
     m_psi = 1 - args.m0 * ((phi**2 - 1) ** 2) #psi mobility (depends on phi)
 
     #psi current
-    psi_curr_x = - m_psi * grad(nu, x)
-    psi_curr_y = - m_psi * grad(nu, y)
+    psi_curr_x = - m_psi * nu_x
+    psi_curr_y = - m_psi * nu_y
 
-    #RESIDUALS
+    #residuals
     res_phi = phi_t + args.m_phi * mu
     res_mu = mu - (args.lambda_surf * k * ((1.0 / args.eps) * g_phi_der - args.eps * lap_phi) + (1.0/2.0) * p_phi_der * (f_in_values - f_out_values))
     res_psi = psi_t + grad(psi_curr_x, x) + grad(psi_curr_y, y)
     res_nu = nu - ((1 + p_phi)/2.0 * args.lambda_in * (psi - args.psi_in_eq) + (1 - p_phi)/2.0 * args.lambda_out * (psi - args.psi_out_eq))
+    
+    return res_phi, res_mu, res_psi, res_nu
+
+#governing equation term of the total loss (2D AC + CH + interaction term gamma*c*phi)
+def pde_loss(
+        x, y, t, 
+        model, 
+        args
+):
+    x.requires_grad_(True)
+    y.requires_grad_(True)
+    t.requires_grad_(True)
+
+    phi, mu, psi, nu = model(x, y, t) #model predictions of the fields
+
+    #compute residuals
+    res_phi, res_mu, res_psi, res_nu = pde_residuals(
+        x, y, t, 
+        phi, 
+        psi, 
+        mu, 
+        nu
+    )
 
     loss_pde_phi = torch.mean(res_phi ** 2)
     loss_pde_mu = torch.mean(res_mu ** 2)

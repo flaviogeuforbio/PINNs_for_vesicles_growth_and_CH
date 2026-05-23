@@ -4,7 +4,7 @@ from torch.optim import Adam
 
 from models import BioACCHPINN2d
 from losses_bio_2d import pde_loss, bc_loss, ic_loss
-from utils_bio_2d import generate_coll_points_and_ic
+from utils_bio_2d import generate_coll_points_and_ic, adaptive_resample_pde_points
 
 #function to train the model for just one iteration 
 def train_one_epoch(
@@ -141,7 +141,8 @@ def train_model(
     nu_ic_true, #true initial potential profile (nu(x, y, 0))
     n_epochs: int,
     pretrain_epochs: int,
-    args
+    args,
+    device
 ):
     #initiate losses history
     train_losses = {
@@ -187,7 +188,30 @@ def train_model(
     print("ADAM TRAINING")
     print("="*40)
 
+    adaptive_done = False
+
     for epoch in range(1, n_epochs + 1):
+
+        if (
+            args.adaptive_sampling 
+            and (not adaptive_done)
+            and epoch == args.adap_warmup_epochs
+        ):
+            print(f"\nAdaptive resampling at epoch {epoch}...")
+
+            #generate new collocation points (adaptive + uniform)
+            x_pde_new, y_pde_new, t_pde_new = adaptive_resample_pde_points(
+                model, 
+                args, 
+                device = device
+            )
+
+            #replace collocation points in the collocation dictionary
+            collocation["x_pde"] = x_pde_new
+            collocation["y_pde"] = y_pde_new
+            collocation["t_pde"] = t_pde_new
+
+            adaptive_done = True
 
         epoch_losses = train_one_epoch(
             model, 
@@ -341,7 +365,8 @@ def train_one_segment(
         nu_ic_true, 
         n_epochs = args.epochs,
         pretrain_epochs = args.pretrain_epochs,
-        args = args
+        args = args,
+        device = device
     )
 
     #L-BFGS

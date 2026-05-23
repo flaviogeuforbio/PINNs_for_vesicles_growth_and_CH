@@ -3,6 +3,7 @@ from pathlib import Path
 import math
 
 from models import BioACCHPINN2d
+from losses_bio_2d import pde_residuals
 
 k = 3 * math.sqrt(2) / 4 #paper constant
 
@@ -276,6 +277,77 @@ def generate_coll_points_and_ic(args, device, ic_fn = None):
     return collocation, phi_ic_true, mu_ic_true, psi_ic_true, nu_ic_true
 
 
+#function to implement adaptive resampling after a first (warmup) training phase (two-stage adaptive resampling)
+def adaptive_resample_pde_points(
+    model, 
+    args, 
+    device, 
+):
+    model.eval() #we are stopping the training to resample collocation points
+
+    n_adapt = int(args.adaptive_frac * args.N_pde)
+    n_uniform = args.N_pde - n_adapt
+    n_candidates = args.n_candidates_resamp
+
+    #candidate points
+    x_cand = torch.rand(n_candidates, 1, device = device) * args.lx
+    y_cand = torch.rand(n_candidates, 1, device = device) * args.ly
+    t_cand = torch.rand(n_candidates, 1, device = device) * args.segment_length
+
+    x_cand.requires_grad_(True)
+    y_cand.requires_grad_(True)
+    t_cand.requires_grad_(True)
+
+    #compute fields prediction
+    phi, mu, psi, nu = model(x_cand, y_cand, t_cand)
+
+    #compute residuals 
+    res_phi, res_mu, res_psi, res_nu = pde_residuals(
+        x_cand, y_cand, t_cand, 
+        phi, 
+        psi, 
+        mu,
+        nu
+    )
+
+    #compute the residual score to detect the 'hardest' regions for the net
+    score = (
+        torch.abs(res_psi) #we weight res_psi more because we observed the net struggling in this specific term (pde psi loss term) 
+        + 0.25 * torch.abs(res_mu)
+        + 0.25 * torch.abs(res_phi)
+        + 0.25 * torch.abs(res_nu)
+    )
+    score.detach().flatten() #1d tensor out of any comp. graph
+
+    #select highest-score points 
+    topk_idx = torch.topk(score, k = n_adapt, largest = True).indices
+
+    x_adapt = x_cand.detach()[topk_idx]
+    y_adapt = y_cand.detach()[topk_idx]
+    t_adapt = t_cand.detach()[topk_idx]
+
+    #uniform points for global coverage
+    x_uni = torch.rand(n_uniform, 1, device = device) * args.lx
+    y_uni = torch.rand(n_uniform, 1, device = device) * args.ly
+    t_uni = torch.rand(n_uniform, 1, device = device) * args.segment_length
+
+    #merging uniform points and adaptive points
+    x_pde = torch.cat([x_adapt, x_uni], dim = 0).detach()
+    y_pde = torch.cat([y_adapt, y_uni], dim = 0).detach()
+    t_pde = torch.cat([t_adapt, t_uni], dim = 0).detach()
+
+    print(
+        f"Adaptive PDE resampling done | "
+        f"N_candidates={n_candidates} | "
+        f"N_adapt={n_adapt} | "
+        f"N_uniform={n_uniform} | "
+        f"score_max={score.max().item():.4e} | "
+        f"score_mean={score.mean().item():.4e}"
+    )
+
+    model.train() #continuing the training loop
+
+    return x_pde, y_pde, t_pde
 
 
 #function to load the PINN best model
