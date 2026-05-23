@@ -284,8 +284,8 @@ def adaptive_resample_pde_points(
 ):
     model.eval() #we are stopping the training to resample collocation points
 
-    n_adapt = int(args.adaptive_frac * args.N_pde)
-    n_uniform = args.N_pde - n_adapt
+    n_adapt = int(args.adaptive_frac * args.n_pde)
+    n_uniform = args.n_pde - n_adapt
     n_candidates = args.n_candidates_resamp
 
     #candidate points
