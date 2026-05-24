@@ -32,7 +32,12 @@ def pde_loss(
     loss_pde_psi = torch.mean(res_psi ** 2)
     loss_pde_nu = torch.mean(res_nu ** 2)
 
-    loss_pde = loss_pde_phi + loss_pde_mu + loss_pde_psi + loss_pde_nu 
+    loss_pde = (
+        args.pde_phi_w * loss_pde_phi 
+        + args.pde_mu_w * loss_pde_mu 
+        + args.pde_psi_w * loss_pde_psi 
+        + args.pde_nu_w * loss_pde_nu
+    ) 
     return loss_pde, loss_pde_phi, loss_pde_mu, loss_pde_psi, loss_pde_nu
 
 

@@ -472,7 +472,7 @@ def pde_residuals(
     p_phi_der = p_interp_der(phi)
     g_phi_der = g_der(phi)
 
-    f_in_values, f_out_values = f_in(psi, args.psi_in_eq, args.lambda_in, args.beta_in), f_out(phi, args.psi_out_eq, args.lambda_out, args.beta_out) #f_in(psi), f_out(psi)
+    f_in_values, f_out_values = f_in(psi, args.psi_in_eq, args.lambda_in, args.beta_in), f_out(psi, args.psi_out_eq, args.lambda_out, args.beta_out) #f_in(psi), f_out(psi)
     m_psi = 1 - args.m0 * ((phi**2 - 1) ** 2) #psi mobility (depends on phi)
 
     #psi current
