@@ -153,9 +153,16 @@ def compute_energy(
 
 
 #simple IC for phi: diffused disk -> tanh
-def initial_phi(x, y, eps, radius=0.28, x0=0.5, y0=0.5):
-    r = torch.sqrt((x - x0)**2 + (y - y0)**2)
-    return torch.tanh((radius - r) / (math.sqrt(2.0) * eps))
+def initial_phi(x, y, eps, radius=0.28, x0=0.5, y0=0.5, pert_a=0.08, pert_mode=4):
+    # circular shape with angular perturbation (we don't want to start from a shape with maximized volume/surface ratio)
+    dx = x - x0
+    dy = y - y0
+    
+    r = torch.sqrt(dx**2 + dy**2)
+    theta = torch.atan2(dy, dx)
+
+    R_theta = radius * (1 + pert_a * torch.cos(pert_mode * theta))
+    return torch.tanh((R_theta - r) / (math.sqrt(2.0) * eps))
 
 #simple IC for psi: almost 'step-wise' uniform distribution with different values inside and outside
 def initial_psi(phi, psi_in_0, psi_out_0):
