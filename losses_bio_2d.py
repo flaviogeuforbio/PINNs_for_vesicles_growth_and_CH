@@ -2,6 +2,7 @@ import torch
 import math
 
 from utils_bio_2d import grad, laplacian, f_in, f_out, g_der, p_interp, p_interp_der, pde_residuals
+from manufactured_bio_2d import manufactured_sources
 
 k = 3 * math.sqrt(2) / 4 #paper constant
 
@@ -9,7 +10,7 @@ k = 3 * math.sqrt(2) / 4 #paper constant
 def pde_loss(
         x, y, t, 
         model, 
-        args
+        args,
 ):
     x.requires_grad_(True)
     y.requires_grad_(True)
@@ -26,6 +27,15 @@ def pde_loss(
         nu,
         args
     )
+
+    if getattr(args, "manufactured", False): 
+        #computing source terms (forced PDE)
+        S_phi, S_psi = manufactured_sources(
+            x, y, t, args
+        )
+
+        res_phi = res_phi - S_phi
+        res_psi = res_psi - S_psi
 
     loss_pde_phi = torch.mean(res_phi ** 2)
     loss_pde_mu = torch.mean(res_mu ** 2)

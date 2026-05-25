@@ -1,4 +1,5 @@
 import torch 
+import argparse
 
 from utils_bio_2d import grad, integral_2d, compute_energy, predict_windowed, p_interp
 
@@ -105,7 +106,6 @@ def evaluate_diagnostics_tw(
 
 
 if __name__ == "__main__":
-    import argparse
     from pathlib import Path
 
     from utils_bio_2d import load_models

@@ -3,6 +3,7 @@ from pathlib import Path
 import math
 
 from models import BioACCHPINN2d
+from manufactured_bio_2d import exact_fields_ms_target
 
 k = 3 * math.sqrt(2) / 4 #paper constant
 
@@ -11,7 +12,8 @@ def grad(u, x):
     return torch.autograd.grad(
         u, x, 
         grad_outputs = torch.ones_like(u), 
-        create_graph = True
+        create_graph = True,
+        retain_graph = True
     )[0]
 
 #function to compute laplacian
@@ -153,7 +155,7 @@ def compute_energy(
 
 
 #simple IC for phi: diffused disk -> tanh
-def initial_phi(x, y, eps, radius=0.28, x0=0.5, y0=0.5, pert_a=0.08, pert_mode=4):
+def initial_phi(x, y, eps, radius=0.28, x0=0.5, y0=0.5, pert_a=0.00, pert_mode=4): #no perturbation (perfect circle) by default
     # circular shape with angular perturbation (we don't want to start from a shape with maximized volume/surface ratio)
     dx = x - x0
     dy = y - y0
@@ -274,7 +276,9 @@ def generate_coll_points_and_ic(args, device, ic_fn = None):
 
     #setting the true initial condition or the last prediction of the previous segment
     if ic_fn is None:
-        phi_ic_true, mu_ic_true, psi_ic_true, nu_ic_true = initial_fields(x_ic, y_ic, args)
+        phi_ic_true, mu_ic_true, psi_ic_true, nu_ic_true = (
+            exact_fields_ms_target(x_ic, y_ic, t_ic, args) if args.manufactured else initial_fields(x_ic, y_ic, args)
+        )
         phi_ic_true, mu_ic_true, psi_ic_true, nu_ic_true = phi_ic_true.to(device), mu_ic_true.to(device), psi_ic_true.to(device), nu_ic_true.to(device)
 
     else:
