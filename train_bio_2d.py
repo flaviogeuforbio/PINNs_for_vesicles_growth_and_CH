@@ -85,7 +85,7 @@ if __name__ == "__main__":
     print(f"n_segments = {n_segments}")
 
     #setting directories to save output data
-    out_dir = Path("artifacts/manufactured") / args.run_name if getattr(args, "manufactured", False) else Path("artifacts/bio-minimal")
+    out_dir = Path("artifacts/manufactured") / args.run_name if getattr(args, "manufactured", False) else Path("artifacts/bio-minimal") / args.run_name
     weights_dir = out_dir / "weights"
     lossplots_dir = out_dir / "figures"
 

@@ -1,4 +1,5 @@
 import torch 
+import json
 import argparse
 import matplotlib.pyplot as plt
 
@@ -101,6 +102,35 @@ def evaluate_diagnostics_ms(
         
     return results
 
+#function to load args from run_config.json (generated at the end of the training)
+def update_args_from_run_config(args):
+    config_path = Path("artifacts/manufactured") / args.run_name / "run_config.json"
+
+    if not config_path.exists():
+        print(f"WARNING: run_config.json not found at {config_path}")
+        return args
+
+    with open(config_path, "r") as f:
+        config = json.load(f)
+
+    for key, value in config.items():
+        if hasattr(args, key):
+            setattr(args, key, value)
+
+    print(f"Loaded run configuration from: {config_path}")
+    print("Active diagnostics parameters:")
+    print(f"  tmax          = {args.tmax}")
+    print(f"  segment_length= {args.segment_length}")
+    print(f"  eps           = {args.eps}")
+    print(f"  m_phi         = {args.m_phi}")
+    print(f"  m0            = {args.m0}")
+    print(f"  psi_in_eq     = {args.psi_in_eq}")
+    print(f"  psi_out_eq    = {args.psi_out_eq}")
+    print(f"  hidden_layers = {args.hidden_layers}")
+    print(f"  hidden_dim    = {args.hidden_dim}")
+
+    return args
+
 
 def plot_errors(results, out_dir):
     times = results["times"]
@@ -137,6 +167,7 @@ if __name__ == "__main__":
     from utils_bio_2d import load_models
 
     args = parse_args()
+    args = update_args_from_run_config(args)
 
     #setting the device
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
