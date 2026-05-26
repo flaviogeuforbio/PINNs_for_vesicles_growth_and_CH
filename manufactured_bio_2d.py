@@ -48,7 +48,7 @@ def f_out(psi, psi_eq: float, lambda_out: float, beta_out: float):
 
 #function to calculate the exact profile of manufactured solutions phi_ex, psi_ex
 def exact_phi_psi(x, y, t, args):
-    if args.ms_smooth:
+    if getattr(args, "ms_smooth", False):
         #we choose cosines so that normal derivatives vanish at borders (for L_x, L_y = 1)
         spatial = torch.cos(math.pi * x) * torch.cos(math.pi * y)
 
