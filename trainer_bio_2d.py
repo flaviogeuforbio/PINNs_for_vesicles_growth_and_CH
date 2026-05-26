@@ -365,6 +365,7 @@ def train_one_segment(
     )
 
     #L-BFGS
+    lbfgs_losses = None
     if args.lbfgs_iter > 0:
         lbfgs_losses = train_lbfgs(
             model=model,

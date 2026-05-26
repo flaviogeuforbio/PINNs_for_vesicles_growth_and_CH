@@ -48,9 +48,17 @@ def parse_args():
     parser.add_argument("--adap_warmup_epochs", type=int, default=400, help = "N. of pre-adaptation epochs in training before performing adaptive resampling of coll. points")
     parser.add_argument("--n_candidates_resamp", type=int, default=30000, help = "N. of candidate points generated in adaptive resampling phase")
     parser.add_argument("--adaptive_frac", type=float, default=0.7, help = "Fraction of adaptive resampled points in total resampled points (adaptive + uniform)")
-    parser.add_argument("--manufactured", action="store_true", help = "if True, a manufactured solution is used to validate the model (PDE forced with external sources)")
-    parser.add_argument("--run_name", type=str, required=True, help = "Name of the current run (specify parameters/hyperparameters, e.g. gamma005_tmax1_epochs2000)")
+    parser.add_argument("--run_name", type=str, required=True, help = "Name of the current run (specify parameters/hyperparameters, e.g. gamma005_tmax1_epochs2000)") 
     
+    parser.add_argument("--manufactured", action="store_true", help = "if True, a manufactured solution is used to validate the model (PDE forced with external sources)")
+    parser.add_argument("--ms_smooth", action="store_true", help = "if True, a simpler smooth manufactured solution is used (instead of the phase-field-like solution)")
+    parser.add_argument("--ms_R0", type=float, default=0.25, help = "Initial vesicle radius (IC of phase-field-like manufactured solution)")
+    parser.add_argument("--ms_alpha_R", type=float, default=0.3, help = "Growth rate of vesicle radius in phase-field-like manufactured solution")
+    parser.add_argument("--ms_psi_in0", type=float, default=0.3, help = "Initial concentration psi inside the vesicle (for phase-field-like manufactured solution)")
+    parser.add_argument("--ms_psi_out0", type=float, default=0.8, help = "Initial concentration psi outside the vesicle (for phase-field-like manufactured solution)")
+    parser.add_argument("--ms_beta_in", type=float, default=0.2, help = "Growth rate of concentration psi inside the vesicle (for phase-field-like manufactured solution)")
+    parser.add_argument("--ms_beta_out", type=float, default=0.0, help = "Growth rate of concentration psi outside the vesicle (for phase-field-like manufactured solution)")
+
     return parser.parse_args()
 
 #function to save all CLI arguments used for the current run

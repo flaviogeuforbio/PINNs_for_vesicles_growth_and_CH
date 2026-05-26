@@ -1,17 +1,6 @@
 import torch 
 import math 
 
-# from utils_bio_2d import (
-#     grad, 
-#     laplacian, 
-#     p_interp, 
-#     p_interp_der, 
-#     g_der, 
-#     f_in, 
-#     f_out, 
-#     k
-# )
-
 k = 3 * math.sqrt(2) / 4 #paper constant
 
 #function to compute first derivative
@@ -58,12 +47,31 @@ def f_out(psi, psi_eq: float, lambda_out: float, beta_out: float):
 
 
 #function to calculate the exact profile of manufactured solutions phi_ex, psi_ex
-def exact_phi_psi(x, y, t):
-    #we choose cosines so that normal derivatives vanish at borders (for L_x, L_y = 1)
-    spatial = torch.cos(math.pi * x) * torch.cos(math.pi * y)
+def exact_phi_psi(x, y, t, args):
+    if args.ms_smooth:
+        #we choose cosines so that normal derivatives vanish at borders (for L_x, L_y = 1)
+        spatial = torch.cos(math.pi * x) * torch.cos(math.pi * y)
 
-    phi = 0.2 + 0.3 * spatial * torch.exp(-1.0 * t)
-    psi = 0.5 + 0.2 * spatial * torch.exp(-0.7 * t)
+        phi = 0.2 + 0.3 * spatial * torch.exp(-1.0 * t)
+        psi = 0.5 + 0.2 * spatial * torch.exp(-0.7 * t)
+
+        return phi, psi
+
+    dx = x - args.x0
+    dy = y - args.y0
+
+    r = torch.sqrt(dx**2 + dy**2)
+
+    R_t = args.ms_R0 + args.ms_alpha_R * t
+
+    phi = torch.tanh((R_t - r) / (math.sqrt(2) * args.eps))
+
+    psi_in_t = args.ms_psi_in0 + args.ms_beta_in * t
+    psi_out_t = args.ms_psi_out0 + args.ms_beta_out * t
+
+    p_phi = p_interp(phi)
+
+    psi = 0.5 * (1 + p_phi) * psi_in_t + 0.5 * (1 - p_phi) * psi_out_t
 
     return phi, psi
 
@@ -98,7 +106,7 @@ def exact_fields_ms(x, y, t, args):
     y.requires_grad_(True)
     t.requires_grad_(True)
 
-    phi_ex, psi_ex = exact_phi_psi(x, y, t)
+    phi_ex, psi_ex = exact_phi_psi(x, y, t, args)
 
     mu_ex, nu_ex = compute_mu_nu_targets(
         phi_ex, 
