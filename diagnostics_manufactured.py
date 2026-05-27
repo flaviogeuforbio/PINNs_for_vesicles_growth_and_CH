@@ -4,7 +4,7 @@ import argparse
 import matplotlib.pyplot as plt
 
 from utils_bio_2d import grad, predict_windowed
-from manufactured_bio_2d import exact_fields_ms
+from manufactured_bio_2d import exact_fields_ms, manufactured_sources
 
 #function to pars data from CLI
 def parse_args():
@@ -32,6 +32,8 @@ def parse_args():
     parser.add_argument("--hidden_dim", type=int, default=128, help = "N. of neurons for each PINN hidden layers")
     parser.add_argument("--n_grid", type=int, default=128, help = "(n_grid x n_grid): dimension of the discrete grid needed to compute mass, energy... for diagnostics")
 
+    parser.add_argument("--source_diagnostics", action="store_true", help = "if True, it is performed source terms diagnostics too. The idea is to assess how intense are the external sources for the current manufactured solution")
+
     parser.add_argument("--ms_smooth", action="store_true", help = "if True, a simpler smooth manufactured solution is used (instead of the phase-field-like solution)")
     parser.add_argument("--ms_R0", type=float, default=0.25, help = "Initial vesicle radius (IC of phase-field-like manufactured solution)")
     parser.add_argument("--x0", type=float, default=0.5, help = "x coordinate of the center of the vesicle IC (phi field)")
@@ -50,6 +52,10 @@ def parse_args():
 def mse(pred, true): 
     return torch.mean((pred - true) ** 2)
 
+#function to compute root mean squared error
+def rmse(u):
+    return torch.sqrt(torch.mean(u ** 2))
+
 #function to compute relative error L2
 def relative_l2(pred, true, eps=1e-12):
     numerator = torch.sqrt(torch.mean((pred - true) ** 2))
@@ -57,8 +63,8 @@ def relative_l2(pred, true, eps=1e-12):
 
     return numerator / denominator
 
-#function to perform the diagnostics in manufactured solutions configuration 
-def evaluate_diagnostics_ms(
+#function to evaluate the diagnostics in manufactured solutions configuration 
+def evaluate_err_diagnostics(
     models, 
     times, 
     n_grid,
@@ -110,7 +116,75 @@ def evaluate_diagnostics_ms(
         results["rel_l2_nu"].append(float(relative_l2(nu_pred, nu_ex).detach().cpu()))
 
         
+    return results, x_flat, y_flat
+
+#function to evaluate the diagnostics for external source terms. The idea is to check how 'far' is the 
+#forced PDE from the original one (minimal biological model)
+def evaluate_source_diagnostics(x_flat, y_flat, times, args):
+
+    results = {
+        "times": [],
+        "rmse_phi_t": [], 
+        "rmse_m_phi_mu": [], 
+        "rmse_S_phi": [], 
+
+        "rmse_psi_t": [],
+        "rmse_div_J": [], 
+        "rmse_S_psi": [],
+
+        "rho_phi": [], 
+        "rho_psi": []
+    }
+
+    for time_value in times:
+        t = torch.full_like(x_flat, float(time_value), device=x_flat.device).requires_grad_(True)
+        
+        x = x_flat.clone().detach().requires_grad_(True)
+        y = y_flat.clone().detach().requires_grad_(True)
+
+        phi_ex, mu_ex, psi_ex, nu_ex = exact_fields_ms(x, y, t, args) #calculate exact fields
+
+        #derivatives and useful quantities
+        phi_t = grad(phi_ex, t)
+        psi_t = grad(psi_ex, t)
+
+        nu_x = grad(nu_ex, x)
+        nu_y = grad(nu_ex, y)
+
+        M_psi = 1.0 - args.m0 * ((phi_ex ** 2 - 1.0) ** 2)
+
+        J_x = -M_psi * nu_x
+        J_y = -M_psi * nu_y
+
+        div_J = grad(J_x, x) + grad(J_y, y)
+
+        #calculating source terms
+        S_phi = phi_t + args.m_phi * mu_ex
+        S_psi = psi_t + div_J
+
+        #updating results
+        results["times"].append(float(time_value))
+        
+        results["rmse_phi_t"].append(rmse(phi_t).item())
+        results["rmse_m_phi_mu"].append(rmse(args.m_phi * mu_ex).item())
+        results["rmse_S_phi"].append(rmse(S_phi).item())
+
+        results["rmse_psi_t"].append(rmse(psi_t).item())
+        results["rmse_div_J"].append(rmse(div_J).item())
+        results["rmse_S_psi"].append(rmse(S_psi).item())
+
+        #adding pho value (normalized S_phi/S_psi rmse)
+        eps = 1e-12
+
+        rho_phi = rmse(S_phi) / (rmse(phi_t) + rmse(args.m_phi * mu_ex) + eps)
+        rho_psi = rmse(S_psi) / (rmse(psi_t) + rmse(div_J) + eps)
+
+        results["rho_phi"].append(rho_phi.item())
+        results["rho_psi"].append(rho_psi.item())
+
     return results
+
+
 
 #function to load args from run_config.json (generated at the end of the training)
 def update_args_from_run_config(args):
@@ -141,7 +215,7 @@ def update_args_from_run_config(args):
 
     return args
 
-
+#function to plot error diagnostics (predicted fields vs exact manufactured fields)
 def plot_errors(results, out_dir):
     times = results["times"]
 
@@ -169,7 +243,87 @@ def plot_errors(results, out_dir):
     plt.savefig(out_dir / "mse_errors.png", dpi=200)
     plt.close()
 
+#function to plot a spatial maps of the manufactured source terms magnitude and relative magnitude (point-wise)
+def plot_source_maps(x_flat, y_flat, n_grid, args, out_dir, time_value=None):
+    if time_value is None:
+        time_value = args.tmax
 
+    device = x_flat.device
+
+    x = x_flat.clone().detach().requires_grad_(True)
+    y = y_flat.clone().detach().requires_grad_(True)
+    t = torch.full_like(x, float(time_value), device=device).requires_grad_(True)
+
+    phi_ex, mu_ex, psi_ex, nu_ex = exact_fields_ms(x, y, t, args)
+
+    phi_t = grad(phi_ex, t)
+    psi_t = grad(psi_ex, t)
+
+    nu_x = grad(nu_ex, x)
+    nu_y = grad(nu_ex, y)
+
+    M_psi = 1.0 - args.m0 * ((phi_ex ** 2 - 1.0) ** 2)
+
+    J_x = -M_psi * nu_x
+    J_y = -M_psi * nu_y
+
+    div_J = grad(J_x, x) + grad(J_y, y)
+
+    S_phi = phi_t + args.m_phi * mu_ex
+    S_psi = psi_t + div_J
+
+    eps = 1e-12
+
+    rho_phi_pointwise = torch.abs(S_phi) / (
+        torch.abs(phi_t) + torch.abs(args.m_phi * mu_ex) + eps
+    )
+
+    rho_psi_pointwise = torch.abs(S_psi) / (
+        torch.abs(psi_t) + torch.abs(div_J) + eps
+    )
+
+    def to_grid(u):
+        return u.detach().cpu().reshape(n_grid, n_grid).T
+
+    maps = {
+        r"$\log_{10}(|S_\phi|)$": torch.log10(torch.abs(S_phi) + eps),
+        r"$\log_{10}(|S_\psi|)$": torch.log10(torch.abs(S_psi) + eps),
+        r"$\rho_\phi(x,y)$": rho_phi_pointwise,
+        r"$\rho_\psi(x,y)$": rho_psi_pointwise,
+    }
+
+    fig, axes = plt.subplots(2, 2, figsize=(10, 8))
+
+    for ax, (title, field) in zip(axes.ravel(), maps.items()):
+        im = ax.imshow(
+            to_grid(field),
+            origin="lower",
+            extent=[0.0, args.lx, 0.0, args.ly],
+            aspect="equal",
+        )
+        ax.set_title(title)
+        ax.set_xlabel("x")
+        ax.set_ylabel("y")
+        plt.colorbar(im, ax=ax)
+
+    fig.suptitle(f"Manufactured source maps at t={float(time_value):.3f}")
+    plt.tight_layout()
+    plt.savefig(out_dir / f"source_maps_t{float(time_value):.3f}.png", dpi=200)
+    plt.close()
+
+#function to plot source terms diagnostics (to assess how strong is the external forcing over the original PDE)
+def plot_source_diag(results, out_dir):
+    times = results["times"]
+
+    plt.figure(figsize=(8, 5))
+    plt.semilogy(times, results["rho_phi"], label=r"$\rho_{\phi}$")
+    plt.semilogy(times, results["rho_psi"], label=r"$\rho_{\psi}$")
+    plt.xlabel("time")
+    plt.title("Normalized sources $S_{\phi}$,$S_{\psi}$ magnitude")
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(out_dir / "normalized_source_magnitude.png", dpi=200)
+    plt.close()
 
 if __name__ == "__main__":
     from pathlib import Path
@@ -201,7 +355,7 @@ if __name__ == "__main__":
     
     diagnostics_times = torch.linspace(0.0, args.tmax, 11)
 
-    diagnostics = evaluate_diagnostics_ms(
+    error_diagnostics, x_flat, y_flat = evaluate_err_diagnostics(
         models = models, 
         times = diagnostics_times,  
         n_grid = args.n_grid,
@@ -209,5 +363,19 @@ if __name__ == "__main__":
         device = device
     )
 
-    plot_errors(diagnostics, out_dir)
+    if getattr(args, "source_diagnostics", False):
+        source_diagnostics = evaluate_source_diagnostics(x_flat, y_flat, diagnostics_times, args)
+
+        plot_source_diag(source_diagnostics, out_dir)
+
+        plot_source_maps(
+            x_flat, 
+            y_flat, 
+            args.n_grid, 
+            args, 
+            out_dir, 
+            time_value = args.tmax
+        )
+
+    plot_errors(error_diagnostics, out_dir)
     print(f"Saved diagnostics to: {out_dir}")
