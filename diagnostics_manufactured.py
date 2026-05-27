@@ -243,7 +243,21 @@ def plot_errors(results, out_dir):
     plt.savefig(out_dir / "mse_errors.png", dpi=200)
     plt.close()
 
-#function to plot a spatial maps of the manufactured source terms magnitude and relative magnitude (point-wise)
+#function to plot source terms diagnostics (to assess how strong is the external forcing over the original PDE)
+def plot_source_diag(results, out_dir):
+    times = results["times"]
+
+    plt.figure(figsize=(8, 5))
+    plt.semilogy(times, results["rho_phi"], label=r"$\rho_{\phi}$")
+    plt.semilogy(times, results["rho_psi"], label=r"$\rho_{\psi}$")
+    plt.xlabel("time")
+    plt.title("Normalized sources $S_{\phi}$,$S_{\psi}$ magnitude")
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(out_dir / "normalized_source_magnitude.png", dpi=200)
+    plt.close()
+
+    #function to plot a spatial maps of the manufactured source terms magnitude and relative magnitude (point-wise)
 def plot_source_maps(x_flat, y_flat, n_grid, args, out_dir, time_value=None):
     if time_value is None:
         time_value = args.tmax
@@ -309,20 +323,6 @@ def plot_source_maps(x_flat, y_flat, n_grid, args, out_dir, time_value=None):
     fig.suptitle(f"Manufactured source maps at t={float(time_value):.3f}")
     plt.tight_layout()
     plt.savefig(out_dir / f"source_maps_t{float(time_value):.3f}.png", dpi=200)
-    plt.close()
-
-#function to plot source terms diagnostics (to assess how strong is the external forcing over the original PDE)
-def plot_source_diag(results, out_dir):
-    times = results["times"]
-
-    plt.figure(figsize=(8, 5))
-    plt.semilogy(times, results["rho_phi"], label=r"$\rho_{\phi}$")
-    plt.semilogy(times, results["rho_psi"], label=r"$\rho_{\psi}$")
-    plt.xlabel("time")
-    plt.title("Normalized sources $S_{\phi}$,$S_{\psi}$ magnitude")
-    plt.legend()
-    plt.tight_layout()
-    plt.savefig(out_dir / "normalized_source_magnitude.png", dpi=200)
     plt.close()
 
 if __name__ == "__main__":
