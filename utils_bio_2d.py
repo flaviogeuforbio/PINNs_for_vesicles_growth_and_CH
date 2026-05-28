@@ -213,7 +213,7 @@ def initial_fields(x, y, args):
 
 #function that generates a dict of all collocation points (pde, bc, ic) randomly generated to train the network
 def generate_coll_points_and_ic(args, device, ic_fn = None):
-    N_pde, N_bc, N_ic = args.n_pde, args.n_bc, args.n_ic
+    N_pde, N_bc, N_ic, N_data = args.n_pde, args.n_bc, args.n_ic, args.n_data
     T_max = args.segment_length
     L_x, L_y = args.lx, args.ly
 
@@ -260,6 +260,11 @@ def generate_coll_points_and_ic(args, device, ic_fn = None):
     t_bc = torch.cat([t_left, t_right, t_down, t_up], dim = 0)
     normal_bc = torch.cat([n_left, n_right, n_down, n_up], dim = 0)
 
+    #data points (for inverse problem)
+    x_data = torch.rand(size = (N_data, 1), device = device) * L_x
+    y_data = torch.rand(size = (N_data, 1), device = device) * L_y
+    t_data = torch.rand(size = (N_data, 1), device = device) * T_max
+
     #creating dictionary with all collocation points (pde, ic, bc)
     collocation = {
         "x_pde": x_pde,
@@ -271,7 +276,10 @@ def generate_coll_points_and_ic(args, device, ic_fn = None):
         "normal_bc": normal_bc,
         "x_ic": x_ic, 
         "y_ic": y_ic,
-        "t_ic": t_ic
+        "t_ic": t_ic,
+        "x_data": x_data, 
+        "y_data": y_data, 
+        "t_data": t_data
     }
 
     #setting the true initial condition or the last prediction of the previous segment
@@ -467,7 +475,8 @@ def pde_residuals(
         psi, 
         mu, 
         nu,
-        args
+        args,
+        m_phi_eff = None
 ):
     #computing derivatives and useful quantities
     phi_t = grad(phi, t)
@@ -490,8 +499,12 @@ def pde_residuals(
     psi_curr_x = - m_psi * nu_x
     psi_curr_y = - m_psi * nu_y
 
+    #for inverse m_phi problem
+    if m_phi_eff is None:
+        m_phi_eff = args.m_phi
+
     #residuals
-    res_phi = phi_t + args.m_phi * mu
+    res_phi = phi_t + m_phi_eff * mu
     res_mu = mu - (args.lambda_surf * k * ((1.0 / args.eps) * g_phi_der - args.eps * lap_phi) + (1.0/2.0) * p_phi_der * (f_in_values - f_out_values))
     res_psi = psi_t + grad(psi_curr_x, x) + grad(psi_curr_y, y)
     res_nu = nu - ((1 + p_phi)/2.0 * args.lambda_in * (psi - args.psi_in_eq) + (1 - p_phi)/2.0 * args.lambda_out * (psi - args.psi_out_eq))

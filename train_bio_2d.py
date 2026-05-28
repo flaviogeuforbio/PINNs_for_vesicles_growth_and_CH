@@ -50,6 +50,7 @@ def parse_args():
     parser.add_argument("--adaptive_frac", type=float, default=0.7, help = "Fraction of adaptive resampled points in total resampled points (adaptive + uniform)")
     parser.add_argument("--run_name", type=str, required=True, help = "Name of the current run (specify parameters/hyperparameters, e.g. gamma005_tmax1_epochs2000)") 
     
+    #manufactured solution
     parser.add_argument("--manufactured", action="store_true", help = "if True, a manufactured solution is used to validate the model (PDE forced with external sources)")
     parser.add_argument("--ms_smooth", action="store_true", help = "if True, a simpler smooth manufactured solution is used (instead of the phase-field-like solution)")
     parser.add_argument("--ms_R0", type=float, default=0.25, help = "Initial vesicle radius (IC of phase-field-like manufactured solution)")
@@ -58,6 +59,13 @@ def parse_args():
     parser.add_argument("--ms_psi_out0", type=float, default=0.8, help = "Initial concentration psi outside the vesicle (for phase-field-like manufactured solution)")
     parser.add_argument("--ms_beta_in", type=float, default=0.2, help = "Growth rate of concentration psi inside the vesicle (for phase-field-like manufactured solution)")
     parser.add_argument("--ms_beta_out", type=float, default=0.0, help = "Growth rate of concentration psi outside the vesicle (for phase-field-like manufactured solution)")
+
+    #inverse problem
+    parser.add_argument("--inverse_m_phi", action="store_true", help = "if True, the network is trained to solve the inverse problem for m_phi parameter")
+    parser.add_argument("--m_phi_init", type=float, default=0.3, help = "Initial value (guess) for m_phi in inverse problem, target value is args.m_phi")
+    parser.add_argument("--data_weight", type=float, default=10.0, help = "Data loss term weight")
+    parser.add_argument("--n_data", type=int, default=5000, help = "N. of data collocation points")
+    parser.add_argument("--data_noise", type=float, default=0.0, help = "...")
 
     return parser.parse_args()
 
@@ -105,13 +113,29 @@ if __name__ == "__main__":
 
     ic_fn = None
 
+    #creating trainable parameter for inverse problem
+    if getattr(args, "inverse_m_phi", False):
+        print("=" * 80)
+        print("INVERSE PROBLEM: inferring m_phi")
+        print(f"True m_phi   = {args.m_phi}")
+        print(f"Initial guess = {args.m_phi_init}")
+        print("=" * 80)
+
+        log_m_phi = torch.nn.Parameter(
+            torch.tensor(np.log(args.m_phi_init), dtype=torch.float32, device = device)
+        )
+
+    else: 
+        log_m_phi = None
+
     for segment_idx in range(n_segments):
         #training the single segment
         model, train_losses, pretrain_losses, lbfgs_losses = train_one_segment(
             segment_idx, 
             ic_fn, 
             args, 
-            device
+            device,
+            log_m_phi
         )
 
         #updating models and histories array
@@ -150,6 +174,19 @@ if __name__ == "__main__":
 
         plt.savefig(lossplots_dir / f"segment_{segment_idx}_lossplot.png", dpi=200, bbox_inches="tight")
         plt.close()
+
+        #plot learned m_phi vs epoch (for inverse problem)
+        if getattr(args, "inverse_m_phi", False) and len(train_losses["m_phi"]) > 0:
+            plt.figure(figsize=(8, 5))
+            plt.plot(np.arange(1, len(train_losses["m_phi"]) + 1), train_losses["m_phi"], label=r"learned $m_\phi$")
+            plt.axhline(args.m_phi, linestyle="--", color="black", label=r"true $m_\phi$")
+            plt.xlabel("Epoch")
+            plt.ylabel(r"$m_\phi$")
+            plt.title(f"Inverse parameter inference: segment {segment_idx}")
+            plt.legend()
+            plt.grid(True, alpha=0.4)
+            plt.savefig(lossplots_dir / f"segment_{segment_idx}_m_phi_convergence.png", dpi=200, bbox_inches="tight")
+            plt.close()
 
         #creating new ic for next segment model using current model predictions
         ic_fn = make_ic_from_previous_model(

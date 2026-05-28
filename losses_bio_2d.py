@@ -2,7 +2,7 @@ import torch
 import math
 
 from utils_bio_2d import grad, laplacian, f_in, f_out, g_der, p_interp, p_interp_der, pde_residuals
-from manufactured_bio_2d import manufactured_sources
+from manufactured_bio_2d import manufactured_sources, exact_phi_psi
 
 k = 3 * math.sqrt(2) / 4 #paper constant
 
@@ -11,6 +11,7 @@ def pde_loss(
         x, y, t, 
         model, 
         args,
+        m_phi_eff = None
 ):
     x.requires_grad_(True)
     y.requires_grad_(True)
@@ -25,7 +26,8 @@ def pde_loss(
         psi, 
         mu, 
         nu,
-        args
+        args,
+        m_phi_eff
     )
 
     if getattr(args, "manufactured", False): 
@@ -103,3 +105,21 @@ def bc_loss(model, x_bc, y_bc, t_bc, normal):
 
     bc_loss = bc_phi_loss + bc_mu_loss + bc_psi_loss + bc_nu_loss
     return bc_loss, bc_phi_loss, bc_mu_loss, bc_psi_loss, bc_nu_loss
+
+
+#function to compute data loss (MSE between predicted and target manufactured fields) in inverse problem + manufactured solutions config.
+def data_loss_manufactured(model, x_data, y_data, t_data, args):
+    #calculating model prediction for physical fields phi, psi
+    phi_pred, _, psi_pred, _ = model(x_data, y_data, t_data)
+
+    #computing exact fields (manufactured solutions)
+    phi_ex, psi_ex = exact_phi_psi(x_data, y_data, t_data, args)
+
+    if args.data_noise > 0: 
+        phi_ex = phi_ex + args.data_noise * torch.randn_like(phi_ex)
+        psi_ex = psi_ex + args.data_noise * torch.randn_like(psi_ex)
+
+    phi_loss = torch.mean((phi_pred - phi_ex) ** 2)
+    psi_loss = torch.mean((psi_pred - psi_ex) ** 2)
+
+    return phi_loss + psi_loss, phi_loss, psi_loss

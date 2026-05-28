@@ -1,9 +1,10 @@
 import time
 import torch 
+import numpy as np
 from torch.optim import Adam
 
 from models import BioACCHPINN2d
-from losses_bio_2d import pde_loss, bc_loss, ic_loss
+from losses_bio_2d import pde_loss, bc_loss, ic_loss, data_loss_manufactured
 from utils_bio_2d import generate_coll_points_and_ic, adaptive_resample_pde_points
 
 #function to train the model for just one iteration 
@@ -16,7 +17,8 @@ def train_one_epoch(
         nu_ic_true,
         optimizer, 
         epoch,
-        args
+        args, 
+        m_phi_eff = None
 ):
     model.train()
 
@@ -24,30 +26,43 @@ def train_one_epoch(
     x_pde, y_pde, t_pde = collocation["x_pde"], collocation["y_pde"], collocation["t_pde"]
     x_bc, y_bc, t_bc, normal = collocation["x_bc"], collocation["y_bc"], collocation["t_bc"], collocation["normal_bc"]
     x_ic, y_ic, t_ic = collocation["x_ic"], collocation["y_ic"], collocation["t_ic"]
+    x_data, y_data, t_data = collocation["x_data"], collocation["y_data"], collocation["t_data"]
 
     optimizer.zero_grad() #zero-ing the gradients
 
-    #calculating the total loss and backpropagating
-    l_pde, l_pde_phi, l_pde_mu, l_pde_psi, l_pde_nu = pde_loss(x_pde, y_pde, t_pde, model, args)
+    l_pde, l_pde_phi, l_pde_mu, l_pde_psi, l_pde_nu = pde_loss(x_pde, y_pde, t_pde, model, args, m_phi_eff)
     l_bc, l_bc_phi, l_bc_mu, l_bc_psi, l_bc_nu = bc_loss(model, x_bc, y_bc, t_bc, normal)
     l_ic, l_ic_phi, l_ic_mu, l_ic_psi, l_ic_nu = ic_loss(model, x_ic, y_ic, t_ic, phi_ic_true, mu_ic_true, psi_ic_true, nu_ic_true)
 
     #loss terms weight unpacking 
     pde_weight, bc_weight, ic_weight = args.pde_weight, args.bc_weight, args.ic_weight
     pde_phi_w, pde_mu_w, pde_psi_w, pde_nu_w = args.pde_phi_w, args.pde_mu_w, args.pde_psi_w, args.pde_nu_w
+    data_weight = args.data_weight
 
-    loss = (
-        pde_weight * (pde_phi_w * l_pde_phi + pde_mu_w * l_pde_mu + pde_psi_w * l_pde_psi + pde_nu_w * l_pde_nu) 
-        + bc_weight * l_bc
-        + ic_weight * l_ic
-    )
+    if getattr(args, "inverse_m_phi", False):
+        l_data, l_data_phi, l_data_psi = data_loss_manufactured(model, x_data, y_data, t_data, args)
+     
+        loss = (
+            pde_weight * (pde_phi_w * l_pde_phi + pde_mu_w * l_pde_mu + pde_psi_w * l_pde_psi + pde_nu_w * l_pde_nu) 
+            + bc_weight * l_bc
+            + ic_weight * l_ic
+            + data_weight * l_data
+        )
+    
+    else:
+        loss = (
+            pde_weight * (pde_phi_w * l_pde_phi + pde_mu_w * l_pde_mu + pde_psi_w * l_pde_psi + pde_nu_w * l_pde_nu) 
+            + bc_weight * l_bc
+            + ic_weight * l_ic
+        )
+
     loss.backward()
 
     optimizer.step() #updating the gradients
 
     #printing results 
     if epoch % 10 == 0 or epoch == 1:
-        print(
+        msg = (
             f"Epoch {epoch:05d} | "
             f"Loss PDE (phi): {l_pde_phi.item():.4e} | "
             f"Loss PDE (mu): {l_pde_mu.item():.4e} | "
@@ -57,7 +72,15 @@ def train_one_epoch(
             f"Loss IC: {l_ic.item():.4e}"
         )
 
-    return {
+        if getattr(args, "inverse_m_phi", False):
+            msg += (
+                f" | Loss Data: {l_data.item():.4e}"
+                f" | m_phi: {float(m_phi_eff.detach().cpu()):.6e}"
+            )
+
+        print(msg)
+
+    epoch_results = {
         "total": loss.item(),
         "pde": l_pde.item(),
         "pde_phi": l_pde_phi.item(),
@@ -74,7 +97,15 @@ def train_one_epoch(
         "ic_mu": l_ic_mu.item(),
         "ic_psi": l_ic_psi.item(), 
         "ic_nu": l_ic_nu.item()
-    }
+    } 
+
+    if getattr(args, "inverse_m_phi", False):
+        epoch_results["data"] = l_data.item()
+        epoch_results["data_phi"] = l_data_phi.item()
+        epoch_results["data_psi"] = l_data_psi.item()
+        epoch_results["m_phi"] = m_phi_eff.item()
+
+    return epoch_results
 
 
 #function to pre-train the model on IC only 
@@ -142,7 +173,8 @@ def train_model(
     n_epochs: int,
     pretrain_epochs: int,
     args,
-    device
+    device,
+    log_m_phi = None
 ):
     #initiate losses history
     train_losses = {
@@ -161,7 +193,11 @@ def train_model(
         "ic_phi": [],
         "ic_mu": [],
         "ic_psi": [], 
-        "ic_nu": []
+        "ic_nu": [],
+        "data": [],
+        "data_phi": [],
+        "data_psi": [],
+        "m_phi": []
     }
 
     if pretrain_epochs > 0:
@@ -208,6 +244,12 @@ def train_model(
             collocation["y_pde"] = y_pde_new
             collocation["t_pde"] = t_pde_new
 
+        #for inverse problem in m_phi parameter
+        if log_m_phi is not None:
+            m_phi_eff = torch.exp(log_m_phi)
+        else:
+            m_phi_eff = args.m_phi
+
         epoch_losses = train_one_epoch(
             model, 
             collocation,
@@ -217,7 +259,8 @@ def train_model(
             nu_ic_true,  
             optimizer, 
             epoch,
-            args
+            args,
+            m_phi_eff
         ) #train one epoch and calculate losses terms
 
         #update losses history with current values
@@ -238,6 +281,12 @@ def train_model(
         train_losses["ic_psi"].append(epoch_losses["ic_psi"])
         train_losses["ic_nu"].append(epoch_losses["ic_nu"])
 
+        if getattr(args, "inverse_m_phi", False): 
+            train_losses["data"].append(epoch_losses["data"])
+            train_losses["data_phi"].append(epoch_losses["data_phi"])
+            train_losses["data_psi"].append(epoch_losses["data_psi"])
+            train_losses["m_phi"].append(epoch_losses["m_phi"])
+
     # return pretrain_losses, train_losses
     return train_losses, pretrain_losses
 
@@ -250,7 +299,8 @@ def train_lbfgs(
     mu_ic_true,
     psi_ic_true, 
     nu_ic_true,
-    args
+    args,
+    log_m_phi = None
 ):
     
     #REFINEMENT PHASE 
@@ -260,8 +310,14 @@ def train_lbfgs(
     print("="*40)
     model.train()
 
+    params = list(model.parameters())
+
+    #adding logarithm of m_phi trainable parameter to optimizer parameters
+    if getattr(args, "inverse_m_phi", False):
+        params += [log_m_phi]
+
     optimizer = torch.optim.LBFGS(
-        model.parameters(),
+        params=params,
         lr=1.0,
         max_iter=args.lbfgs_iter,
         max_eval=args.lbfgs_iter * 2,
@@ -274,30 +330,53 @@ def train_lbfgs(
     x_pde, y_pde, t_pde = collocation["x_pde"], collocation["y_pde"], collocation["t_pde"]
     x_bc, y_bc, t_bc, normal = collocation["x_bc"], collocation["y_bc"], collocation["t_bc"], collocation["normal_bc"]
     x_ic, y_ic, t_ic = collocation["x_ic"], collocation["y_ic"], collocation["t_ic"]
+    x_data, y_data, t_data = collocation["x_data"], collocation["y_data"], collocation["t_data"]
 
     history = {
         "total": [],
         "pde": [],
         "bc": [],
         "ic": [],
+        "data": [],
+        "m_phi": []
     }
 
     def closure():
         optimizer.zero_grad()
 
-        l_pde, l_pde_phi, l_pde_mu, l_pde_psi, l_pde_nu = pde_loss(x_pde, y_pde, t_pde, model, args)
+        if log_m_phi is not None:
+            m_phi_eff = torch.exp(log_m_phi)
+        else:
+            m_phi_eff = args.m_phi
+
+        l_pde, l_pde_phi, l_pde_mu, l_pde_psi, l_pde_nu = pde_loss(x_pde, y_pde, t_pde, model, args, m_phi_eff)
         l_bc, *_ = bc_loss(model, x_bc, y_bc, t_bc, normal)
         l_ic, *_ = ic_loss(model, x_ic, y_ic, t_ic, phi_ic_true, mu_ic_true, psi_ic_true, nu_ic_true)
 
         #loss terms weight unpacking 
-        pde_weight, bc_weight, ic_weight = args.pde_weight, args.bc_weight, args.ic_weight
+        pde_weight, bc_weight, ic_weight, data_weight = args.pde_weight, args.bc_weight, args.ic_weight, args.data_weight
         pde_phi_w, pde_mu_w, pde_psi_w, pde_nu_w = args.pde_phi_w, args.pde_mu_w, args.pde_psi_w, args.pde_nu_w
 
-        loss = (
-            pde_weight * (pde_phi_w * l_pde_phi + pde_mu_w * l_pde_mu + pde_psi_w * l_pde_psi + pde_nu_w * l_pde_nu) 
-            + bc_weight * l_bc
-            + ic_weight * l_ic
-        )
+        if getattr(args, "inverse_m_phi", False):
+            l_data, *_ = data_loss_manufactured(model, x_data, y_data, t_data, args)
+        
+            loss = (
+                pde_weight * (pde_phi_w * l_pde_phi + pde_mu_w * l_pde_mu + pde_psi_w * l_pde_psi + pde_nu_w * l_pde_nu) 
+                + bc_weight * l_bc
+                + ic_weight * l_ic
+                + data_weight * l_data
+            ) 
+
+            history["data"].append(l_data.item())
+            history["m_phi"].append(m_phi_eff.item())
+        
+        else:
+            loss = (
+                pde_weight * (pde_phi_w * l_pde_phi + pde_mu_w * l_pde_mu + pde_psi_w * l_pde_psi + pde_nu_w * l_pde_nu) 
+                + bc_weight * l_bc
+                + ic_weight * l_ic
+            )
+
         loss.backward()
 
         history["total"].append(loss.item())
@@ -310,13 +389,21 @@ def train_lbfgs(
     optimizer.step(closure)
 
     print("\nL-BFGS refinement completed.")
-    print(
+    msg = (
         f"Final L-BFGS | "
         f"Total: {history['total'][-1]:.4e} | "
         f"PDE: {history['pde'][-1]:.4e} | "
         f"BC: {history['bc'][-1]:.4e} | "
         f"IC: {history['ic'][-1]:.4e}"
     )
+
+    if getattr(args, "inverse_m_phi", False):
+        msg += (
+            f" | Data: {history['data'][-1]:.4e}"
+            f" | m_phi: {history['m_phi'][-1]:.6e}"
+        )
+
+    print(msg)
 
     return history
 
@@ -326,7 +413,8 @@ def train_one_segment(
         segment_idx, 
         ic_fn, 
         args, 
-        device
+        device,
+        log_m_phi = None
 ):
     print("\n" + "=" * 80)
     print(f"TRAINING SEGMENT {segment_idx}")
@@ -339,7 +427,13 @@ def train_one_segment(
         hidden_dim = args.hidden_dim
     ).to(device)
 
-    optimizer = Adam(model.parameters(), lr = args.lr) 
+    #adding trainable parameter for inverse problem to optimizer parameters list
+    params = list(model.parameters())
+
+    if log_m_phi is not None:
+        params += [log_m_phi]
+
+    optimizer = Adam(params, lr = args.lr) 
 
     #generate collocation points + ic (true or from previous model)
     collocation, phi_ic_true, mu_ic_true, psi_ic_true, nu_ic_true = generate_coll_points_and_ic(
@@ -361,7 +455,8 @@ def train_one_segment(
         n_epochs = args.epochs,
         pretrain_epochs = args.pretrain_epochs,
         args = args,
-        device = device
+        device = device,
+        log_m_phi = log_m_phi
     )
 
     #L-BFGS
@@ -374,7 +469,8 @@ def train_one_segment(
             mu_ic_true=mu_ic_true,
             psi_ic_true=psi_ic_true, 
             nu_ic_true=nu_ic_true, 
-            args=args
+            args=args,
+            log_m_phi=log_m_phi
         )
     print(f"Execution time: {time.time() - start_time:.2f}s")
 
