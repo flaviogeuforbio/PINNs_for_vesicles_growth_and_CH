@@ -62,6 +62,7 @@ def parse_args():
 
     #inverse problem
     parser.add_argument("--inverse_m_phi", action="store_true", help = "if True, the network is trained to solve the inverse problem for m_phi parameter")
+    parser.add_argument("--m_phi_lr", type=float, default=5e-3, help = "Learning rate for m_phi parameter")
     parser.add_argument("--m_phi_init", type=float, default=0.3, help = "Initial value (guess) for m_phi in inverse problem, target value is args.m_phi")
     parser.add_argument("--data_weight", type=float, default=10.0, help = "Data loss term weight")
     parser.add_argument("--n_data", type=int, default=5000, help = "N. of data collocation points")

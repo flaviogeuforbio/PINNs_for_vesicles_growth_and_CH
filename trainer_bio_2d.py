@@ -431,9 +431,14 @@ def train_one_segment(
     params = list(model.parameters())
 
     if log_m_phi is not None:
-        params += [log_m_phi]
-
-    optimizer = Adam(params, lr = args.lr) 
+        optimizer = Adam(
+            [
+                {"params": params, "lr": args.lr},
+                {"params": [log_m_phi], "lr": args.m_phi_lr}
+            ]
+        ) 
+    else:
+        optimizer = Adam(params, lr = args.lr)
 
     #generate collocation points + ic (true or from previous model)
     collocation, phi_ic_true, mu_ic_true, psi_ic_true, nu_ic_true = generate_coll_points_and_ic(
