@@ -467,6 +467,43 @@ def predict_windowed(models, x, y, t_global, segment_length, device):
 
     return model(x, y, t_local) #phi, mu, psi, nu
 
+#same for predicted window but here we give a tensor of times t_tensor as input (instead of a single float value)
+def predict_windowed_tensor(models, x, y, t_global, segment_length, device):
+    x = x.to(device)
+    y = y.to(device)
+    t_global = t_global.to(device)
+
+    #compute segment_idx (model to use) for each data point
+    segment_idxs = torch.floor(t_global / segment_length).long()
+    segment_idxs = torch.clamp(segment_idxs, min=0, max=len(models) - 1)
+
+    #compute local times
+    tau = t_global - segment_idxs.float() * segment_length
+
+    out = torch.zeros((x.shape[0], 4), device=device)
+
+    #evaluate each segment model on points assigned to it
+    for s, model in enumerate(models):
+        mask = (segment_idxs[:, 0] == s)
+
+        if not torch.any(mask):
+            continue
+
+        model.eval()
+
+        x_s = x[mask]
+        y_s = y[mask]
+        tau_s = tau[mask]
+
+        phi_s, mu_s, psi_s, nu_s = model(x_s, y_s, tau_s)
+
+        out[mask, 0:1] = phi_s
+        out[mask, 1:2] = mu_s
+        out[mask, 2:3] = psi_s
+        out[mask, 3:4] = nu_s
+
+    return out
+
 
 #helper to compute pde residuals
 def pde_residuals(

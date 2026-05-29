@@ -115,9 +115,9 @@ def data_loss_manufactured(model, x_data, y_data, t_data, args):
     #computing exact fields (manufactured solutions)
     phi_ex, psi_ex = exact_phi_psi(x_data, y_data, t_data, args)
 
-    if args.data_noise > 0: 
-        phi_ex = phi_ex + args.data_noise * torch.randn_like(phi_ex)
-        psi_ex = psi_ex + args.data_noise * torch.randn_like(psi_ex)
+    # if args.data_noise > 0: 
+    #     phi_ex = phi_ex + args.data_noise * torch.randn_like(phi_ex)
+    #     psi_ex = psi_ex + args.data_noise * torch.randn_like(psi_ex)
 
     phi_loss = torch.mean((phi_pred - phi_ex) ** 2)
     psi_loss = torch.mean((psi_pred - psi_ex) ** 2)

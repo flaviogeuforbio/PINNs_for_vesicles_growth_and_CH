@@ -1,0 +1,18 @@
+{
+    "m_phi_true": 0.1,
+    "m_phi_weak_local_net": 0.10583316534757614,
+    "m_phi_weak_local_exact": 0.10000000149011612,
+    "rel_error_net": 0.05833165347576136,
+    "rel_error_exact": 1.4901161138336505e-08,
+    "rmse_weak_res_true_m_net": 0.024792779237031937,
+    "rmse_weak_res_est_m_net": 0.020149243995547295,
+    "rmse_weak_res_true_m_exact": 2.4493228778510456e-08,
+    "rmse_weak_res_est_m_exact": 2.4493228778510456e-08,
+    "A_int_mu_rms": 2.476545572280884,
+    "B_rhs_rms": 0.2628740072250366,
+    "delta_phi_rms": 0.03187863156199455,
+    "int_S_phi_rms": 0.27767840027809143,
+    "dt_weak": 0.9,
+    "n_samples": 30000,
+    "n_quad": 8
+}
