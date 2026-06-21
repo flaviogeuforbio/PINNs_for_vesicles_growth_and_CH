@@ -107,6 +107,32 @@ def bc_loss(model, x_bc, y_bc, t_bc, normal):
     return bc_loss, bc_phi_loss, bc_mu_loss, bc_psi_loss, bc_nu_loss
 
 
+#function to inject gaussian noise in deterministic manufactured data (to test inverse problem robustness)
+def add_deterministic_relative_noise(u, noise_level, seed, offset=0):
+    if noise_level is None or noise_level <= 0.0:
+        return u
+
+    if seed is None:
+        raise ValueError("data_noise > 0 but data_noise_segment_seed is None.")
+
+    u_det = u.detach()
+    scale = torch.std(u_det)
+
+    if scale.item() < 1e-12:
+        scale = torch.mean(torch.abs(u_det)) + 1e-12
+
+    gen = torch.Generator(device=u.device)
+    gen.manual_seed(int(seed) + int(offset))
+
+    noise = torch.randn(
+        u.shape,
+        generator=gen,
+        device=u.device,
+        dtype=u.dtype
+    )
+
+    return u + noise_level * scale * noise
+
 #function to compute data loss (MSE between predicted and target manufactured fields) in inverse problem + manufactured solutions config.
 def data_loss_manufactured(model, x_data, y_data, t_data, args):
     #calculating model prediction for physical fields phi, psi
@@ -115,9 +141,22 @@ def data_loss_manufactured(model, x_data, y_data, t_data, args):
     #computing exact fields (manufactured solutions)
     phi_ex, psi_ex = exact_phi_psi(x_data, y_data, t_data, args)
 
-    # if args.data_noise > 0: 
-    #     phi_ex = phi_ex + args.data_noise * torch.randn_like(phi_ex)
-    #     psi_ex = psi_ex + args.data_noise * torch.randn_like(psi_ex)
+    if getattr(args, "data_noise", 0.0) > 0.0:
+        seed = getattr(args, "data_noise_segment_seed", None)
+
+        phi_ex = add_deterministic_relative_noise(
+            phi_ex,
+            args.data_noise,
+            seed,
+            offset=0
+        )
+
+        psi_ex = add_deterministic_relative_noise(
+            psi_ex,
+            args.data_noise,
+            seed,
+            offset=100000
+        )
 
     phi_loss = torch.mean((phi_pred - phi_ex) ** 2)
     psi_loss = torch.mean((psi_pred - psi_ex) ** 2)

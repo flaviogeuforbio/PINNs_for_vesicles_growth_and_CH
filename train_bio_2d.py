@@ -66,7 +66,7 @@ def parse_args():
     parser.add_argument("--m_phi_init", type=float, default=0.3, help = "Initial value (guess) for m_phi in inverse problem, target value is args.m_phi")
     parser.add_argument("--data_weight", type=float, default=10.0, help = "Data loss term weight")
     parser.add_argument("--n_data", type=int, default=5000, help = "N. of data collocation points")
-    parser.add_argument("--data_noise", type=float, default=0.0, help = "...")
+    parser.add_argument("--data_noise", type=float, default=0.0, help = "Relative Gaussian noise level added to manufactured data targets")
 
     return parser.parse_args()
 
@@ -85,6 +85,7 @@ if __name__ == "__main__":
     import numpy as np
     import matplotlib.pyplot as plt
     from pathlib import Path
+    import secrets
 
     from utils_bio_2d import make_ic_from_previous_model
 
@@ -129,7 +130,26 @@ if __name__ == "__main__":
     else: 
         log_m_phi = None
 
+    #creating random seeds for each segment to inject always the same random noise at each training epoch
+    if getattr(args, "data_noise", 0.0) > 0.0:
+        args.data_noise_segment_seeds = [
+            secrets.randbits(31) for _ in range(n_segments)
+        ]
+    else:
+        args.data_noise_segment_seeds = []
+
     for segment_idx in range(n_segments):
+        if getattr(args, "data_noise", 0.0) > 0.0:
+            args.data_noise_segment_seed = args.data_noise_segment_seeds[segment_idx]
+            print(
+                f"Data noise enabled | "
+                f"segment={segment_idx} | "
+                f"noise={args.data_noise} | "
+                f"seed={args.data_noise_segment_seed}"
+            )
+        else:
+            args.data_noise_segment_seed = None
+
         #training the single segment
         model, train_losses, pretrain_losses, lbfgs_losses = train_one_segment(
             segment_idx, 
