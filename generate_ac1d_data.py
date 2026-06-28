@@ -35,7 +35,7 @@ import matplotlib.pyplot as plt
 # =============================================================================
 
 # physical parameters
-M_PHI_TRUE = 0.5
+M_PHI_TRUE = 0.1
 K = 1.0
 EPS = 0.08
 
@@ -53,8 +53,8 @@ RTOL = 1e-9
 ATOL = 1e-11
 
 # output files
-OUT_NPZ = "artifacts/ac1d_blind_data.npz"
-OUT_PNG = "artifacts/ac1d_diagnostic.png"
+OUT_NPZ = "artifacts/ac1d_blind_data_mphi01.npz"
+OUT_PNG = "artifacts/ac1d_diagnostic_mphi01.png"
 
 
 # =============================================================================
