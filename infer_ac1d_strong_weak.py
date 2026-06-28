@@ -241,7 +241,7 @@ def main():
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    run_dir = Path(args.run_dir)
+    run_dir = Path("artifacts") / args.run_dir
     config = load_config(run_dir)
     metrics = load_metrics(run_dir)
 

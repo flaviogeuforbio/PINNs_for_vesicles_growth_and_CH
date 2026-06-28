@@ -18,10 +18,8 @@ class SimpleAC1D(nn.Module):
     The inputs are internally mapped to [-1,1] for easier optimization.
     """
 
-    def __init__(self, hidden_layers: int, hidden_dim: int, t_final: float):
+    def __init__(self, hidden_layers: int, hidden_dim: int):
         super().__init__()
-
-        self.t_final = float(t_final)
 
         layers = []
         layers.append(nn.Linear(2, hidden_dim))
