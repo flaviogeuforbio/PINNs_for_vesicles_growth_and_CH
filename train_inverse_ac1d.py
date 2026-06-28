@@ -556,8 +556,7 @@ def main():
 
     model = SimpleAC1D(
         hidden_layers=args.hidden_layers,
-        hidden_dim=args.hidden_dim,
-        t_final=data["t_final"],
+        hidden_dim=args.hidden_dim
     ).to(device)
 
     log_m_phi = nn.Parameter(
