@@ -1,0 +1,20 @@
+{
+    "m_phi_true": 0.1,
+    "m_phi_trainable": 0.09967499226331711,
+    "m_phi_strong_net": 0.09962037205696106,
+    "rmse_strong_residual": 0.004760037176311016,
+    "A_mu_rms_strong": 3.168696641921997,
+    "B_minus_phi_t_rms_strong": 0.3157026469707489,
+    "m_phi_weak_net": 0.0996747612953186,
+    "rmse_weak_residual": 0.00011755523883039132,
+    "A_int_mu_rms_weak": 0.07891103625297546,
+    "B_minus_delta_phi_rms_weak": 0.007866318337619305,
+    "dt_weak": 0.025,
+    "n_quad": 8,
+    "rel_error_strong_net": 0.00379627943038946,
+    "rel_error_weak_net": 0.0032523870468140204,
+    "n_samples_strong": 30000,
+    "n_samples_weak": 10000,
+    "seed": 1234,
+    "rel_error_trainable": 0.003250077366828974
+}
