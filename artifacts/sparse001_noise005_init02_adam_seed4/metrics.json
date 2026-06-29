@@ -1,0 +1,10 @@
+{
+    "m_phi_true": 0.5,
+    "m_phi_final": 0.5011208057403564,
+    "m_phi_relative_error": 0.0022416114807128906,
+    "full_grid_mse_phi": 3.3445116969232913e-06,
+    "full_grid_relative_l2_phi": 0.002861663931980729,
+    "data_fraction": 0.01,
+    "data_noise": 0.05,
+    "n_observed_data_points": 162
+}
